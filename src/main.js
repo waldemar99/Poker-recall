@@ -166,7 +166,7 @@ function replayEquity(){
  const results=Array(9).fill(0);
  if(eligible.length===1){results[eligible[0]]=100;equityCache.set(key,results);return results;}
  if(!eligible.length)return results;
- const known=hand.players.flatMap(p=>p.cards);
+ const known=[...hand.players.flatMap(p=>p.cards),...hand.board.slice(0,shown)];
  const seen=new Set(known.map(c=>c.r+':'+c.s));
  const remaining=[];
  for(const suit of ['♠','♥','♦','♣'])for(let rank=2;rank<=14;rank++)if(!seen.has(rank+':'+suit))remaining.push({r:rank,s:suit});
