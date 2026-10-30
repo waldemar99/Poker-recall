@@ -734,6 +734,13 @@ h1 em {
 }
 .runtime-help[hidden] { display: none !important; }
 
+
+/* Chips move from seats to the pot and back to winners. */
+.chip-flight{position:absolute;z-index:9;pointer-events:none;width:21px;height:21px;border-radius:50%;border:3px dashed #f5e5bd;background:radial-gradient(circle,#cb463d 0 43%,#8d2425 45% 100%);box-shadow:0 2px 8px #0009;transform:translate(-50%,-50%);transition:left .55s cubic-bezier(.2,.8,.2,1),top .55s cubic-bezier(.2,.8,.2,1),opacity .18s ease .4s}
+.seat .table-bet{position:absolute;left:50%;top:100%;transform:translateX(-50%);white-space:nowrap;font-size:9px;font-weight:900;color:#ffe0a2;background:#173a32c9;border-radius:12px;padding:1px 5px;min-height:12px}
+.seat .table-bet:empty{display:none}
+.seat .table-bet:not(:empty)::before{content:'●';color:#e7b24e;margin-right:3px}
+@media(prefers-reduced-motion:reduce){.chip-flight{transition:none}}
 </style>
   <style>
 /* Poker Recall – Animationen (dauerhafte Sitzplatz-DOMs vorausgesetzt) */
@@ -974,7 +981,7 @@ function renderSeats(){
  // Sitzplätze werden nur einmal angelegt und bei jeder Aktion aktualisiert.
  // Dadurch bleiben die DOM-Elemente bestehen und Fold-Übergänge animieren wirklich.
  if(host.children.length!==state.length){
-  host.innerHTML=state.map((p,i)=>`<div class="seat" style="--x:${xy[i][0]}%;--y:${xy[i][1]}%"><div class="holecards"><div class="hole"></div><div class="hole"></div></div><div class="person"><div class="name">${hand.players[i].name}</div><div class="stack"></div></div><div class="chip-state"></div></div>`).join('');
+  host.innerHTML=state.map((p,i)=>`<div class="seat" style="--x:${xy[i][0]}%;--y:${xy[i][1]}%"><div class="holecards"><div class="hole"></div><div class="hole"></div></div><div class="person"><div class="name">${hand.players[i].name}</div><div class="stack"></div></div><div class="chip-state"></div><div class="table-bet"></div></div>`).join('');
  }
  state.forEach((p,i)=>{
   const seat=host.children[i];
@@ -986,8 +993,28 @@ function renderSeats(){
   seat.querySelector('.holecards').innerHTML=cardHole(hand.players[i].cards[0],face)+cardHole(hand.players[i].cards[1],face);
   seat.querySelector('.name').textContent=hand.players[i].name;
   seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
+  seat.querySelector('.table-bet').textContent=(mode==='watch'&&p.streetBet>0)?fmt(p.streetBet):'';
   seat.querySelector('.chip-state').textContent=p.folded?'FOLD':(mode==='watch'&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':'');
  });
+}
+function flyChips(from,to,count=2){
+ const wrap=document.querySelector('.table-wrap');if(!wrap||!from||!to)return;
+ const rect=wrap.getBoundingClientRect(),a=from.getBoundingClientRect(),b=to.getBoundingClientRect();
+ for(let j=0;j<count;j++){
+  const chip=document.createElement('div');chip.className='chip-flight';
+  chip.style.left=(a.left+a.width/2-rect.left)+'px';chip.style.top=(a.top+a.height/2-rect.top)+'px';
+  wrap.appendChild(chip);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+   chip.style.left=(b.left+b.width/2-rect.left+(j-1)*9)+'px';
+   chip.style.top=(b.top+b.height/2-rect.top+(j-1)*5)+'px';chip.style.opacity='0';
+  }));setTimeout(()=>chip.remove(),750);
+ }
+}
+function animateBet(id){flyChips($('seats').children[id],document.querySelector('.pot-label'));}
+function animatePayout(){
+ const from=document.querySelector('.pot-label');
+ const winners=[...new Set(hand.pots.flatMap(p=>p.winners))];
+ for(const id of winners)flyChips(from,$('seats').children[id],3);
 }
 function renderList(){
  if(!state)return;
@@ -1026,6 +1053,7 @@ async function playRound(id){
   const p=state[action.id];Object.assign(p,{stack:action.stack,committed:action.committed,streetBet:action.bet,folded:action.folded,allIn:action.allIn});
   pot=action.pot;lastActions[action.id]=action.action;
   setLive(action.text);log.push(action.text);updateLog();render();
+  if(action.put>0)animateBet(action.id);
   await sleep(Number($('speed').value));if(id!==token)return;
  }
  actor=null;render();await sleep(350);if(id!==token)return;
@@ -1033,6 +1061,7 @@ async function playRound(id){
 }
 function startQuiz(){
  mode='quiz';progress();$('history').classList.add('is-hidden');
+ if(state.some(p=>p.streetBet>0))flyChips(document.querySelector('.seat .table-bet:not(:empty)'),document.querySelector('.pot-label'),3);
  setPhase('02 / ERINNERN',`${E.STREETS[street]} · Gedächtnistest`,'Die Aktionen sind ausgeblendet. Gefoldete Spieler bleiben rot durchgestrichen markiert – wie am echten Tisch.');
  setLive('Welche letzte Aktion hat jeder Spieler in dieser Runde ausgeführt?');
  const players=Object.keys(lastActions).map(Number).sort((a,b)=>a-b);
@@ -1072,7 +1101,7 @@ function finish(){
  }).join('');
  const refund=hand.refunds.length?`<p>Nicht gecallte Einsätze zurück: ${hand.refunds.map(r=>hand.players[r.id].name+' '+fmt(r.amount)).join(', ')} Chips.</p>`:'';
  $('showdown').innerHTML=`<div class="eyebrow">03 / SHOWDOWN</div><h2>♠ ${hand.uncontested?'Hand ohne Showdown beendet':'Hand abgeschlossen'}</h2><p>${fmt(hand.totalBefore)} Chips insgesamt · ${fmt(hand.totalAfter)} Chips nach Auszahlung – die Bilanz stimmt.</p>${pots}${refund}<p>Eine weitere Hand kannst du direkt unter dem Tisch starten. Dein Ergebnis: <b>${score} von ${total}</b> richtigen Antworten.</p>`;
- visible('showdown',true);$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">→</span>';render();
+ visible('showdown',true);animatePayout();$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">→</span>';render();
 }
 $('start').addEventListener('click',()=>{
  try { const id=initialize();playRound(id); }
