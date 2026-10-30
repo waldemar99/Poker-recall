@@ -83,7 +83,7 @@ function setLive(text){$('action-text').textContent=text;}
 function setPhase(tag,title,desc){$('phase-label').textContent=tag;$('phase-title').textContent=title;$('instructions').textContent=desc;}
 function updateLog(){ $('history').innerHTML=log.slice(-5).map(x=>`<span>${x}</span>`).join(''); }
 function initialize(){
- token++;hand=E.createHand();mode='watch';street=0;actor=null;score=0;total=0;pot=hand.initialPot;shown=0;log=[];answered=new Set();selections=new Map();checked=false;lastActions={};quizEvents=[];
+ token++;hand=E.createHand();mode='watch';street=0;actor=null;equityCache.clear();score=0;total=0;pot=hand.initialPot;shown=0;log=[];answered=new Set();selections=new Map();checked=false;lastActions={};quizEvents=[];
  state=hand.players.map((p,i)=>({...hand.init[i],folded:false,allIn:hand.init[i].stack===0}));
  visible('quiz',false);visible('showdown',false);$('history').classList.remove('is-hidden');$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">↻</span>';
  $('live-action').hidden=false;setLive('Die Karten sind verteilt. UTG beginnt vor dem Flop.');
@@ -156,6 +156,46 @@ function moveNext(){
  if(street>=3 || hand.events.slice(street+1).every(a=>a.length===0)){finish();return;}
  street++;playRound(token);
 }
+// Equity im Replay: bekannte Holecards aller Spieler werden aus dem Deck entfernt.
+// Monte-Carlo-Anteil am Pot (Split Pots anteilig), nur noch aktive Spieler.
+const equityCache=new Map();
+function replayEquity(){
+ const key=replayIndex+':'+street+':'+shown+':'+state.map(p=>p.folded?'F':'A').join('');
+ if(equityCache.has(key))return equityCache.get(key);
+ const eligible=state.map((p,i)=>!p.folded?i:-1).filter(i=>i>=0);
+ const results=Array(9).fill(0);
+ if(eligible.length===1){results[eligible[0]]=100;equityCache.set(key,results);return results;}
+ if(!eligible.length)return results;
+ const known=hand.players.flatMap(p=>p.cards);
+ const seen=new Set(known.map(c=>c.r+':'+c.s));
+ const remaining=[];
+ for(const suit of ['♠','♥','♦','♣'])for(let rank=2;rank<=14;rank++)if(!seen.has(rank+':'+suit))remaining.push({r:rank,s:suit});
+ const boardKnown=hand.board.slice(0,shown);
+ const missing=5-boardKnown.length;
+ const trials=missing===0?1:1200;
+ for(let t=0;t<trials;t++){
+  const deck=remaining.slice();
+  for(let k=0;k<missing;k++){
+   const j=k+Math.floor(Math.random()*(deck.length-k));
+   [deck[k],deck[j]]=[deck[j],deck[k]];
+  }
+  const board=[...boardKnown,...deck.slice(0,missing)];
+  let best=null,winners=[];
+  for(const i of eligible){
+   const rank=E.evaluate7([...hand.players[i].cards,...board]);
+   const comparison=best===null?1:E.compare(rank,best);
+   if(comparison>0){best=rank;winners=[i];}
+   else if(comparison===0)winners.push(i);
+  }
+  for(const i of winners)results[i]+=100/trials/winners.length;
+ }
+ equityCache.set(key,results);return results;
+}
+function updateReplayEquity(){
+ const panel=$('replay-equity');if(!panel)return;
+ const eq=replayEquity();
+ panel.innerHTML='<strong>Equity · Gewinnchance</strong><div style="font-size:11px;opacity:.7;margin:4px 0 9px">Bekannte Holecards · Split Pots anteilig · Monte-Carlo-Simulation</div>'+hand.players.map((p,i)=>state[i].folded?'':`<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:66px;font-weight:700">${p.name}</span><div style="height:9px;background:#23343c;border-radius:8px;flex:1;overflow:hidden"><div style="height:100%;width:${eq[i].toFixed(2)}%;background:#dfbe79"></div></div><b style="width:55px;text-align:right;font-variant-numeric:tabular-nums">${eq[i].toFixed(1)}%</b></div>`).join('');
+}
 function replaySteps(){return hand.events.flatMap((events,round)=>events.map(action=>({round,action})));}
 function showReplayStep(index){
  const steps=replaySteps();replayIndex=Math.max(0,Math.min(index,steps.length));
@@ -177,7 +217,7 @@ function showReplayStep(index){
  actor=current?current.action.id:null;
  const status=replayIndex===0?'Start der Hand · Blinds sind gesetzt':current.action.text;
  setPhase('04 / REPLAY','Hand Schritt für Schritt',`Aktion ${replayIndex} von ${steps.length} · ${E.STREETS[street]}`);
- setLive(status);progress();render();
+ setLive(status);progress();render();updateReplayEquity();
  $('replay-position').textContent=`Aktion ${replayIndex} / ${steps.length} · ${E.STREETS[street]}`;
  $('replay-prev').disabled=replayIndex===0;
  $('replay-next').disabled=replayIndex===steps.length;
@@ -196,7 +236,7 @@ function finish(){
   return `<div class="pot-result"><b>${i?'Side-Pot '+i:'Main Pot'} · ${fmt(pot.amount)} Chips</b><br>Gewinner: ${players}<br><span>${pot.hand}${pot.winners.length>1?' · Split Pot':''}</span></div>`;
  }).join('');
  const refund=hand.refunds.length?`<p>Nicht gecallte Einsätze zurück: ${hand.refunds.map(r=>hand.players[r.id].name+' '+fmt(r.amount)).join(', ')} Chips.</p>`:'';
- $('showdown').innerHTML=`<div class="eyebrow">03 / SHOWDOWN</div><h2>♠ ${hand.uncontested?'Hand ohne Showdown beendet':'Hand abgeschlossen'}</h2><p>${fmt(hand.totalBefore)} Chips insgesamt · ${fmt(hand.totalAfter)} Chips nach Auszahlung – die Bilanz stimmt.</p>${pots}${refund}<p>Eine weitere Hand kannst du direkt unter dem Tisch starten. Dein Ergebnis: <b>${score} von ${total}</b> richtigen Antworten.</p><button type="button" id="replay-start" class="primary">↻ Replay · Hand ansehen</button><div id="replay-controls" hidden><p id="replay-position" aria-live="polite"></p><div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="replay-prev" class="primary">← Zurück</button><button type="button" id="replay-next" class="primary">Nächste Aktion →</button><button type="button" id="replay-reset" class="primary">↻ Von vorn</button></div></div>`;
+ $('showdown').innerHTML=`<div class="eyebrow">03 / SHOWDOWN</div><h2>♠ ${hand.uncontested?'Hand ohne Showdown beendet':'Hand abgeschlossen'}</h2><p>${fmt(hand.totalBefore)} Chips insgesamt · ${fmt(hand.totalAfter)} Chips nach Auszahlung – die Bilanz stimmt.</p>${pots}${refund}<p>Eine weitere Hand kannst du direkt unter dem Tisch starten. Dein Ergebnis: <b>${score} von ${total}</b> richtigen Antworten.</p><button type="button" id="replay-start" class="primary">↻ Replay · Hand ansehen</button><div id="replay-controls" hidden><p id="replay-position" aria-live="polite"></p><div id="replay-equity" style="margin:12px 0;padding:12px;border:1px solid #34454b;border-radius:12px"></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="replay-prev" class="primary">← Zurück</button><button type="button" id="replay-next" class="primary">Nächste Aktion →</button><button type="button" id="replay-reset" class="primary">↻ Von vorn</button></div></div>`;
  visible('showdown',true);$('replay-start').addEventListener('click',()=>showReplayStep(0));$('replay-prev').addEventListener('click',()=>showReplayStep(replayIndex-1));$('replay-next').addEventListener('click',()=>showReplayStep(replayIndex+1));$('replay-reset').addEventListener('click',()=>showReplayStep(0));animatePayout();$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">→</span>';render();
 }
 $('start').addEventListener('click',()=>{
