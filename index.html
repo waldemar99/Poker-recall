@@ -781,7 +781,7 @@ h1 em {
 <body>
  <main class="app">
   <header class="heading">
-   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V7 · REALISTISCH</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
+   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V8 · REPLAY</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
    <div class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></div>
   </header>
   <section class="sticky-game" aria-label="Pokertisch">
@@ -986,7 +986,7 @@ const $=id=>document.getElementById(id);
 const xy=[[30,88],[10,71],[6,42],[22,15],[49,5],[76,15],[94,42],[90,71],[70,88]];
 const kinds=['Fold','Check','Call','Bet','Raise','All-in'];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-let hand=null,state=null,street=0,mode='idle',token=0,score=0,total=0,answered=new Set(),selections=new Map(),checked=false,lastActions={},quizEvents=[];
+let hand=null,state=null,street=0,mode='idle',token=0,score=0,total=0,answered=new Set(),selections=new Map(),checked=false,lastActions={},quizEvents=[],replayIndex=0;
 let pot=30,shown=0,actor=null,log=[];
 const fmt=n=>new Intl.NumberFormat('de-DE').format(n);
 const visible=(id,display)=>$(id).hidden=!display;
@@ -1012,11 +1012,11 @@ function renderSeats(){
   seat.querySelector('.holecards').innerHTML=cardHole(hand.players[i].cards[0],face)+cardHole(hand.players[i].cards[1],face);
   seat.querySelector('.name').textContent=hand.players[i].name;
   seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
-  seat.querySelector('.table-bet').textContent=(mode==='watch'&&p.streetBet>0)?fmt(p.streetBet):'';
+  seat.querySelector('.table-bet').textContent=((mode==='watch'||mode==='replay')&&p.streetBet>0)?fmt(p.streetBet):'';
   const tag=seat.querySelector('.chip-state');
   const entries=mode==='quiz'?quizEvents.map((ev,index)=>({ev,index})).filter(x=>x.ev.id===i):[];
   const chosen=entries.filter(x=>selections.has(x.index));
-  tag.textContent=mode==='quiz'?(chosen.length?chosen.map(x=>selections.get(x.index).toUpperCase()).join(' › '):p.folded?'FOLD':''):(p.folded?'FOLD':(mode==='watch'&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':''));
+  tag.textContent=mode==='quiz'?(chosen.length?chosen.map(x=>selections.get(x.index).toUpperCase()).join(' › '):p.folded?'FOLD':''):(p.folded?'FOLD':((mode==='watch'||mode==='replay')&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':''));
   tag.classList.toggle('quiz-selected',mode==='quiz'&&chosen.length>0&&!checked);
   tag.classList.toggle('quiz-correct',mode==='quiz'&&checked&&chosen.length>0&&chosen.every(x=>selections.get(x.index)===x.ev.action));
   tag.classList.toggle('quiz-wrong',mode==='quiz'&&checked&&chosen.some(x=>selections.get(x.index)!==x.ev.action));
@@ -1049,7 +1049,7 @@ function renderList(){
 function render(){if(!hand)return;$('pot').textContent=fmt(pot);renderBoard();renderSeats();renderList();$('score').textContent=`${score} / ${total}`;}
 function progress(){
  const s=[...$('progress').children];for(let i=0;i<4;i++)s[i].className=i<street?'done':i===street?'active':'';
- $('street-title').textContent=`${E.STREETS[street].toUpperCase()} · ${mode==='watch'?'BEOBACHTEN':mode==='quiz'?'ERINNERN':mode==='showdown'?'SHOWDOWN':'BEREIT'}`;
+ $('street-title').textContent=`${E.STREETS[street].toUpperCase()} · ${mode==='watch'?'BEOBACHTEN':mode==='quiz'?'ERINNERN':mode==='showdown'?'SHOWDOWN':mode==='replay'?'REPLAY':'BEREIT'}`;
  $('round-label').textContent=`RUNDE ${street+1} / 4`;
 }
 function setLive(text){$('action-text').textContent=text;}
@@ -1129,6 +1129,34 @@ function moveNext(){
  if(street>=3 || hand.events.slice(street+1).every(a=>a.length===0)){finish();return;}
  street++;playRound(token);
 }
+function replaySteps(){return hand.events.flatMap((events,round)=>events.map(action=>({round,action})));}
+function showReplayStep(index){
+ const steps=replaySteps();replayIndex=Math.max(0,Math.min(index,steps.length));
+ mode='replay';actor=null;lastActions={};log=[];
+ state=hand.players.map((p,i)=>({...hand.init[i],folded:false,allIn:hand.init[i].stack===0}));
+ pot=hand.initialPot;street=0;shown=0;
+ for(let n=0;n<replayIndex;n++){
+  const {round,action}=steps[n];
+  if(round!==street){street=round;state.forEach(p=>p.streetBet=0);}
+  const p=state[action.id];Object.assign(p,{stack:action.stack,committed:action.committed,streetBet:action.bet,folded:action.folded,allIn:action.allIn});
+  pot=action.pot;lastActions[action.id]=action.action;
+ }
+ if(replayIndex<steps.length){
+  const next=steps[replayIndex];
+  if(next.round>street){street=next.round;state.forEach(p=>p.streetBet=0);}
+ }
+ shown=[0,3,4,5][street];
+ const current=replayIndex?steps[replayIndex-1]:null;
+ actor=current?current.action.id:null;
+ const status=replayIndex===0?'Start der Hand · Blinds sind gesetzt':current.action.text;
+ setPhase('04 / REPLAY','Hand Schritt für Schritt',`Aktion ${replayIndex} von ${steps.length} · ${E.STREETS[street]}`);
+ setLive(status);progress();render();
+ $('replay-position').textContent=`Aktion ${replayIndex} / ${steps.length} · ${E.STREETS[street]}`;
+ $('replay-prev').disabled=replayIndex===0;
+ $('replay-next').disabled=replayIndex===steps.length;
+ $('replay-start').hidden=true;
+ $('replay-controls').hidden=false;
+}
 function finish(){
  mode='showdown';actor=null;shown=hand.boardToShow;pot=hand.pots.reduce((a,x)=>a+x.amount,0);
  state=hand.final.map((pl)=>({...pl}));
@@ -1141,8 +1169,8 @@ function finish(){
   return `<div class="pot-result"><b>${i?'Side-Pot '+i:'Main Pot'} · ${fmt(pot.amount)} Chips</b><br>Gewinner: ${players}<br><span>${pot.hand}${pot.winners.length>1?' · Split Pot':''}</span></div>`;
  }).join('');
  const refund=hand.refunds.length?`<p>Nicht gecallte Einsätze zurück: ${hand.refunds.map(r=>hand.players[r.id].name+' '+fmt(r.amount)).join(', ')} Chips.</p>`:'';
- $('showdown').innerHTML=`<div class="eyebrow">03 / SHOWDOWN</div><h2>♠ ${hand.uncontested?'Hand ohne Showdown beendet':'Hand abgeschlossen'}</h2><p>${fmt(hand.totalBefore)} Chips insgesamt · ${fmt(hand.totalAfter)} Chips nach Auszahlung – die Bilanz stimmt.</p>${pots}${refund}<p>Eine weitere Hand kannst du direkt unter dem Tisch starten. Dein Ergebnis: <b>${score} von ${total}</b> richtigen Antworten.</p>`;
- visible('showdown',true);animatePayout();$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">→</span>';render();
+ $('showdown').innerHTML=`<div class="eyebrow">03 / SHOWDOWN</div><h2>♠ ${hand.uncontested?'Hand ohne Showdown beendet':'Hand abgeschlossen'}</h2><p>${fmt(hand.totalBefore)} Chips insgesamt · ${fmt(hand.totalAfter)} Chips nach Auszahlung – die Bilanz stimmt.</p>${pots}${refund}<p>Eine weitere Hand kannst du direkt unter dem Tisch starten. Dein Ergebnis: <b>${score} von ${total}</b> richtigen Antworten.</p><button type="button" id="replay-start" class="primary">↻ Replay · Hand ansehen</button><div id="replay-controls" hidden><p id="replay-position" aria-live="polite"></p><div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="replay-prev" class="primary">← Zurück</button><button type="button" id="replay-next" class="primary">Nächste Aktion →</button><button type="button" id="replay-reset" class="primary">↻ Von vorn</button></div></div>`;
+ visible('showdown',true);$('replay-start').addEventListener('click',()=>showReplayStep(0));$('replay-prev').addEventListener('click',()=>showReplayStep(replayIndex-1));$('replay-next').addEventListener('click',()=>showReplayStep(replayIndex+1));$('replay-reset').addEventListener('click',()=>showReplayStep(0));animatePayout();$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">→</span>';render();
 }
 $('start').addEventListener('click',()=>{
  try { const id=initialize();playRound(id); }
