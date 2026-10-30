@@ -781,7 +781,7 @@ h1 em {
 <body>
  <main class="app">
   <header class="heading">
-   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V6 · 2 RAISES</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
+   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V7 · REALISTISCH</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
    <div class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></div>
   </header>
   <section class="sticky-game" aria-label="Pokertisch">
@@ -865,6 +865,8 @@ function createHand(opts={}){
   let q=street===0?[2,3,4,5,6,7,8,0,1].filter(i=>eligible().includes(i)):
     [0,1,2,3,4,5,6,7,8].filter(i=>eligible().includes(i));
   let actedSinceFullRaise=new Set(),safety=0,raisesThisStreet=0;
+  // Trainingsprofil je Street: Preflop aggressiver, Turn/River zunehmend passiv.
+  const aggression=[{raise:.22,open:.30,fold:.15},{raise:.13,open:.27,fold:.16},{raise:.08,open:.20,fold:.17},{raise:.05,open:.15,fold:.18}][street];
   while(q.length&&live().length>1&&++safety<300){
    const i=q.shift(),pl=p[i];
    if(pl.folded||pl.allIn)continue;
@@ -880,19 +882,19 @@ function createHand(opts={}){
    const random=Math.random();
    if(toCall>0){
     const pressure=toCall/Math.max(1,pl.stack+pl.streetBet);
-    if(random<Math.min(.72,.13+pressure*.45)){kind='Fold';pl.folded=true;}
-    else if(canFullRaise&&random>.82){
+    if(random<Math.min(.72,aggression.fold+pressure*.45)){kind='Fold';pl.folded=true;}
+    else if(canFullRaise&&random>1-aggression.raise){
      const raiseSize=Math.max(minExtra,lastFullRaise)*(1+rand(3));
      put=invest(pl,toCall+raiseSize);kind='Raise';
-    }else if(canRaise&&random>.95){
+    }else if(canRaise&&random>.985){
      // Short stack may push for less than a minimum full raise.
      put=invest(pl,pl.stack);kind='All-in';
     }else {put=invest(pl,toCall);kind=pl.allIn?'All-in':'Call';}
    }else{
-    if(canFullRaise&&random>.76){
+    if(canFullRaise&&random>1-aggression.open){
      const raiseSize=Math.max(bb,lastFullRaise)*(1+rand(3));
      put=invest(pl,raiseSize);kind=currentBet?'Raise':'Bet';
-    }else if(canRaise&&random>.96){
+    }else if(canRaise&&random>.99){
      put=invest(pl,pl.stack);kind='All-in';
     }else kind='Check';
    }
