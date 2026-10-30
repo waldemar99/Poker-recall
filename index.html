@@ -862,6 +862,8 @@ function createHand(opts={}){
    const i=q.shift(),pl=p[i];
    if(pl.folded||pl.allIn)continue;
    const toCall=Math.max(0,currentBet-pl.streetBet);
+   // Postflop beginnt jede Setzrunde ohne Einsatz: ein Call ist erst nach einer Bet möglich.
+   if(street>0 && events[street].length===0 && (currentBet!==0 || toCall!==0))throw new Error('Ungültiger Eröffnungseinsatz nach dem Flop');
    const canRaise=active().length>1&&!actedSinceFullRaise.has(i)&&pl.stack>toCall;
    const minRaiseTo=currentBet===0?bb:currentBet<bb?bb:currentBet+lastFullRaise;
    const minExtra=Math.max(0,minRaiseTo-currentBet);
@@ -901,6 +903,9 @@ function createHand(opts={}){
    }
    actedSinceFullRaise.add(i);
    if(pl.allIn&&kind!=='Fold')kind='All-in';
+   // Schutz gegen Call ohne offenen Einsatz, auch bei späteren Änderungen der Simulation.
+   if(kind==='Call' && toCall===0)kind='Check';
+   if(street>0 && events[street].length===0 && kind==='Call')throw new Error('Erster Spieler darf postflop nicht callen');
    pl.lastAction=kind;
    const total=pl.streetBet;
    const actionDetail=kind==='Fold'||kind==='Check'?'':kind==='Call'?' · '+put+' Chips':
