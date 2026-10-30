@@ -846,7 +846,7 @@ function createHand(opts={}){
  let pot=0,currentBet=0,lastFullRaise=bb,raiseCount=0;
  const events=[[],[],[],[]];
  function invest(pl,amount){const paid=Math.min(Math.max(0,amount),pl.stack);pl.stack-=paid;pl.streetBet+=paid;pl.committed+=paid;pot+=paid;if(pl.stack===0)pl.allIn=true;return paid;}
- invest(p[0],sb); invest(p[1],bb); currentBet=Math.max(p[0].streetBet,p[1].streetBet);
+ invest(p[0],sb); invest(p[1],bb); currentBet=bb; // Der volle Big Blind bleibt die Preflop-Einsatzhöhe, auch bei einem Short-BB.
  const init=p.map(pl=>({stack:pl.stack,committed:pl.committed,streetBet:pl.streetBet}));
  function eligible(){return p.filter(x=>!x.folded&&!x.allIn).map(x=>x.id);}
  function live(){return p.filter(x=>!x.folded);}
@@ -863,14 +863,16 @@ function createHand(opts={}){
    if(pl.folded||pl.allIn)continue;
    const toCall=Math.max(0,currentBet-pl.streetBet);
    const canRaise=active().length>1&&!actedSinceFullRaise.has(i)&&pl.stack>toCall;
-   const canFullRaise=canRaise&&pl.stack>=toCall+lastFullRaise;
+   const minRaiseTo=currentBet===0?bb:currentBet<bb?bb:currentBet+lastFullRaise;
+   const minExtra=Math.max(0,minRaiseTo-currentBet);
+   const canFullRaise=canRaise&&pl.stack>=toCall+minExtra;
    let kind,put=0;
    const random=Math.random();
    if(toCall>0){
     const pressure=toCall/Math.max(1,pl.stack+pl.streetBet);
     if(random<Math.min(.72,.13+pressure*.45)){kind='Fold';pl.folded=true;}
     else if(canFullRaise&&random>.82){
-     const raiseSize=lastFullRaise*(1+rand(3));
+     const raiseSize=Math.max(minExtra,lastFullRaise)*(1+rand(3));
      put=invest(pl,toCall+raiseSize);kind='Raise';
     }else if(canRaise&&random>.95){
      // Short stack may push for less than a minimum full raise.
@@ -888,8 +890,8 @@ function createHand(opts={}){
    if(pl.streetBet>currentBet){
     const raiseSize=pl.streetBet-currentBet;
     currentBet=pl.streetBet;
-    if(raiseSize>=lastFullRaise){
-     lastFullRaise=raiseSize;
+    if(raiseSize>=lastFullRaise || (previousBet<bb&&currentBet>=bb)){
+     lastFullRaise=previousBet<bb&&currentBet>=bb?bb:raiseSize;
      actedSinceFullRaise.clear();
      q=clockwise(i,eligible().filter(id=>id!==i));
     }else{
