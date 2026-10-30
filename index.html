@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a1017">
+  <title>Poker Recall · 9-Spieler-Trainer</title>
+  <style>
+/* Poker Recall – Layout, Typografie und Farben */
+:root {
+  color-scheme:dark;
+  --bg:#080e15;
+  --panel:#111c24;
+  --card:#16252d;
+  --line:#23343c;
+  --text:#ebf1ed;
+  --muted:#8da3a6;
+  --gold:#dfbe79;
+  --green:#46d5a1;
+  --red:#fa7477
+}
+
+* {
+  box-sizing:border-box
+}
+
+html {
+  font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--bg)
+}
+
+body {
+  margin:0;
+  background:radial-gradient(ellipse at 50% 0,#142b2a 0,transparent 530px),var(--bg);
+  color:var(--text)
+}
+
+button,select {
+  font:inherit
+}
+
+button {
+  cursor:pointer
+}
+
+.app {
+  max-width:740px;
+  margin:0 auto;
+  padding:0 14px 50px
+}
+
+.heading {
+  padding:25px 7px 22px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px
+}
+
+.eyebrow {
+  letter-spacing:2px;
+  color:var(--gold);
+  font-size:10px;
+  font-weight:900
+}
+
+.logo {
+  font-size:21px;
+  margin-right:7px
+}
+
+.version {
+  color:#728f8a;
+  border:1px solid #344b4c;
+  font-size:9px;
+  border-radius:4px;
+  padding:2px 4px;
+  margin-left:3px
+}
+
+h1 {
+  font-size:clamp(21px,5.5vw,32px);
+  line-height:1.2;
+  letter-spacing:-1px;
+  margin:12px 0 0;
+  font-weight:850
+}
+
+h1 em {
+  font-style:normal;
+  color:var(--gold)
+}
+
+.stat {
+  text-align:right;
+  white-space:nowrap
+}
+
+.stat span {
+  display:block;
+  color:var(--muted);
+  letter-spacing:2px;
+  font-size:9px
+}
+
+.stat strong {
+  font-size:23px;
+  color:var(--gold);
+  font-variant-numeric:tabular-nums
+}
+
+.sticky-game {
+  position:sticky;
+  top:0;
+  z-index:8;
+  background:#0b151b;
+  border:1px solid #27433f;
+  border-radius:18px;
+  box-shadow:0 13px 28px #0009,0 -8px 25px #080e15
+}
+
+.table-header {
+  font-size:10px;
+  letter-spacing:1.2px;
+  color:#a7c3b8;
+  padding:12px 12px 6px;
+  display:flex;
+  justify-content:space-between;
+  font-weight:800
+}
+
+.pulse {
+  display:inline-block;
+  width:7px;
+  height:7px;
+  margin-right:8px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 9px #46d5a190
+}
+
+.table-wrap {
+  position:relative;
+  width:100%;
+  height:clamp(225px,59vw,310px);
+  margin-top:2px;
+  overflow:visible
+}
+
+.felt {
+  position:absolute;
+  left:7%;
+  top:15%;
+  width:86%;
+  height:65%;
+  border:9px solid #533b25;
+  border-radius:49% / 48%;
+  background:radial-gradient(ellipse at 50% 42%,#146554,#0c463f 66%,#08352f);
+  box-shadow:0 7px 0 #211b18,0 13px 25px #0009,inset 0 0 20px #0005
+}
+
+.felt-inner {
+  position:absolute;
+  inset:7%;
+  border:1px solid #ffffff29;
+  border-radius:50%
+}
+
+.pot-label {
+  position:absolute;
+  top:15%;
+  left:0;
+  right:0;
+  text-align:center;
+  color:#b1cfc1;
+  font-weight:800;
+  letter-spacing:1.5px;
+  font-size:10px
+}
+
+.pot-label b {
+  color:#f7deb1;
+  letter-spacing:0;
+  font-size:15px
+}
+
+.board {
+  position:absolute;
+  top:45%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  display:flex;
+  gap:4px
+}
+
+.board-card,.board-ghost {
+  width:clamp(23px,6.3vw,34px);
+  height:clamp(33px,8.8vw,46px);
+  border-radius:4px;
+  background:#fbf7e9;
+  color:#13171b;
+  display:grid;
+  place-items:center;
+  font-size:clamp(11px,3.2vw,16px);
+  font-weight:900;
+  box-shadow:0 2px 7px #0004
+}
+
+.board-card.red {
+  color:#c93142
+}
+
+.board-ghost {
+  background:#16493f;
+  border:1px solid #ffffff35;
+  box-shadow:inset 0 0 12px #0003
+}
+
+.table-title {
+  position:absolute;
+  bottom:9%;
+  left:0;
+  right:0;
+  text-align:center;
+  color:#92d2ba;
+  opacity:.3;
+  letter-spacing:3px;
+  font-size:clamp(9px,2.8vw,16px);
+  font-weight:900
+}
+
+.table-title span {
+  color:#e8c783
+}
+
+.seat {
+  position:absolute;
+  left:var(--x);
+  top:var(--y);
+  transform:translate(-50%,-50%);
+  min-width:55px;
+  max-width:77px;
+  transition:opacity .24s,filter .24s;
+  z-index:2;
+  text-align:center
+}
+
+.seat .person {
+  background:#16292b;
+  border:1px solid #385951;
+  border-radius:8px;
+  padding:3px 3px 2px;
+  box-shadow:0 4px 9px #0006
+}
+
+.seat.is-active .person {
+  border-color:var(--gold);
+  box-shadow:0 0 0 2px #dfbe7960,0 4px 15px #0008
+}
+
+.seat.folded .person {
+  opacity:.48
+}
+
+.seat.is-winner .person {
+  border-color:var(--gold);
+  background:#594625
+}
+
+.seat .name {
+  color:#f3f3e4;
+  font-size:clamp(9px,2.5vw,12px);
+  font-weight:900;
+  white-space:nowrap
+}
+
+.seat .stack {
+  font-size:9px;
+  color:#b2bfb9;
+  font-variant-numeric:tabular-nums
+}
+
+.seat .holecards {
+  display:flex;
+  gap:2px;
+  justify-content:center;
+  margin-bottom:3px;
+  transition:transform .3s,opacity .3s
+}
+
+.seat.folded .holecards {
+  transform:translateY(14px) rotate(-17deg) scale(.75);
+  opacity:0
+}
+
+.hole {
+  width:clamp(14px,4.5vw,20px);
+  height:clamp(20px,6vw,28px);
+  border-radius:3px;
+  background:repeating-linear-gradient(45deg,#294e63,#294e63 3px,#19384b 3px,#19384b 5px);
+  border:2px solid #e5e2c9;
+  box-shadow:0 2px 3px #0008
+}
+
+.hole.face {
+  font-size:10px;
+  font-weight:850;
+  background:#f7f0df;
+  color:#121417;
+  display:grid;
+  place-items:center
+}
+
+.hole.face.red {
+  color:#c43147
+}
+
+.seat .chip-state {
+  display:block;
+  margin-top:2px;
+  font-size:8px;
+  font-weight:900;
+  color:#efbc77;
+  min-height:10px
+}
+
+.seat.folded .chip-state {
+  color:var(--red)
+}
+
+.table-footer {
+  padding:10px 12px 12px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background:#111f24;
+  border-top:1px solid #2a4540;
+  border-radius:0 0 17px 17px
+}
+
+.primary {
+  border:0;
+  background:linear-gradient(135deg,#e9d399,#d7aa58);
+  color:#182022;
+  padding:12px 14px;
+  border-radius:10px;
+  font-weight:900;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 3px 0 #ac8847;
+  flex:1;
+  min-width:0;
+  font-size:13px
+}
+
+.primary:disabled {
+  opacity:.43;
+  cursor:not-allowed;
+  filter:grayscale(.6)
+}
+
+.arrow {
+  margin-left:auto
+}
+
+.speed-control {
+  display:flex;
+  flex-direction:column;
+  gap:4px
+}
+
+.speed-control label {
+  font-size:8px;
+  color:var(--muted);
+  letter-spacing:1px;
+  font-weight:800
+}
+
+.speed-control select {
+  background:#21363b;
+  color:#f7edd5;
+  border:1px solid #3b5a58;
+  border-radius:7px;
+  font-size:12px;
+  padding:8px 5px;
+  max-width:114px
+}
+
+.below {
+  position:relative;
+  z-index:1
+}
+
+.street-progress {
+  display:flex;
+  gap:5px;
+  padding:20px 0 20px
+}
+
+.street-progress span {
+  flex:1;
+  text-align:center;
+  font-size:10px;
+  color:#6e8889;
+  padding:8px 2px;
+  border-bottom:2px solid #24363a
+}
+
+.street-progress span.active {
+  color:var(--gold);
+  border-color:var(--gold)
+}
+
+.street-progress span.done {
+  color:var(--green);
+  border-color:#2c8069
+}
+
+.street-progress b {
+  display:block;
+  margin-top:4px;
+  letter-spacing:0;
+  font-size:11px
+}
+
+.section-title h2,.quiz h2 {
+  font-size:22px;
+  letter-spacing:-.5px;
+  margin:8px 0
+}
+
+.section-title p,.quiz p {
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.6;
+  margin:0 0 16px
+}
+
+.live-action {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border:1px solid #36554e;
+  border-radius:13px;
+  background:#16312e;
+  padding:13px;
+  font-size:13px;
+  font-weight:750
+}
+
+.live-icon {
+  background:#284f46;
+  border-radius:9px;
+  width:35px;
+  height:35px;
+  display:grid;
+  place-items:center;
+  color:var(--gold);
+  font-size:19px;
+  flex-shrink:0
+}
+
+.history {
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin:12px 0 22px;
+  min-height:20px
+}
+
+.history span {
+  background:#18262c;
+  border:1px solid #2c3d44;
+  padding:6px 9px;
+  border-radius:6px;
+  color:#b3c2bb;
+  font-size:10px
+}
+
+.history.is-hidden {
+  display:none
+}
+
+.players-panel {
+  border:1px solid #293e42;
+  background:#111d24;
+  border-radius:14px;
+  overflow:hidden
+}
+
+.panel-heading {
+  display:flex;
+  justify-content:space-between;
+  color:#83999b;
+  letter-spacing:1.5px;
+  font-weight:850;
+  font-size:10px;
+  padding:14px 14px;
+  border-bottom:1px solid #273b42
+}
+
+.player-row {
+  display:flex;
+  align-items:center;
+  padding:10px 12px;
+  gap:12px;
+  border-bottom:1px solid #24333b;
+  min-height:43px
+}
+
+.player-row:last-child {
+  border:0
+}
+
+.player-row .number {
+  color:#647a7d;
+  font-size:10px;
+  width:22px
+}
+
+.player-row .position {
+  font-size:13px;
+  font-weight:800;
+  flex:1
+}
+
+.player-row .amount {
+  font-size:12px;
+  color:#c5d9cf;
+  font-variant-numeric:tabular-nums
+}
+
+.player-row .status {
+  font-size:9px;
+  color:#b0c4bc;
+  text-transform:uppercase;
+  margin-left:8px;
+  min-width:38px;
+  text-align:right
+}
+
+.player-row.folded .position {
+  text-decoration:line-through;
+  text-decoration-thickness:2px;
+  color:var(--red)
+}
+
+.player-row.folded .status {
+  color:var(--red)
+}
+
+.player-row.allin .status {
+  color:#edc276
+}
+
+.quiz {
+  margin-top:24px
+}
+
+.quiz-top {
+  border-top:1px solid #2a3c42;
+  padding-top:18px
+}
+
+.question {
+  background:#12222a;
+  border:1px solid #2b4145;
+  border-radius:12px;
+  padding:12px;
+  margin-bottom:10px
+}
+
+.question .question-head {
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  font-size:13px;
+  font-weight:800;
+  margin-bottom:10px
+}
+
+.question .question-head small {
+  color:var(--muted);
+  font-size:10px
+}
+
+.question.folded .question-head strong {
+  color:var(--red);
+  text-decoration:line-through
+}
+
+.choices {
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap
+}
+
+.choice {
+  border-radius:6px;
+  padding:8px 9px;
+  color:#bad0c6;
+  background:#1c3339;
+  border:1px solid #365055;
+  font-size:11px;
+  font-weight:800
+}
+
+.choice:disabled {
+  opacity:.5;
+  cursor:default
+}
+
+.choice.correct,.choice.correct:disabled {
+  background:#1b654f;
+  border-color:#4ee6a5;
+  color:#fff;
+  opacity:1
+}
+
+.choice.wrong,.choice.wrong:disabled {
+  background:#752a37;
+  border-color:#fa7477;
+  color:#fff;
+  opacity:1
+}
+
+.quiz .next {
+  width:100%;
+  margin:15px 0 24px
+}
+
+.showdown {
+  background:#172b2c;
+  border:1px solid #456255;
+  border-radius:13px;
+  padding:16px;
+  margin:21px 0
+}
+
+.showdown h2 {
+  margin:4px 0 13px;
+  color:var(--gold)
+}
+
+.showdown .pot-result {
+  padding:12px;
+  border-bottom:1px solid #375146;
+  font-size:12px;
+  line-height:1.8
+}
+
+.showdown .pot-result:last-child {
+  border:0
+}
+
+.showdown b {
+  color:#fae0a6
+}
+
+.showdown p {
+  color:#a7bdb2;
+  font-size:12px;
+  line-height:1.6
+}
+
+.footnote {
+  font-size:11px;
+  line-height:1.7;
+  color:#6c8889;
+  padding:20px 5px 30px
+}
+
+@media(max-width:370px) {
+  .app {
+    padding:0 9px 30px
+  }
+  .felt {
+    border-width:7px
+  }
+  .seat .person {
+    padding:2px
+  }
+  .seat {
+    min-width:49px
+  }
+  .table-footer {
+    gap:6px;
+    padding:8px
+  }
+  .primary {
+    font-size:11px;
+    padding:11px 8px
+  }
+  .speed-control select {
+    max-width:91px;
+    font-size:11px
+  }
+}
+
+@media(min-width:580px) {
+  .table-wrap {
+    height:340px
+  }
+  .seat {
+    min-width:76px
+  }
+  .seat .name {
+    font-size:13px
+  }
+  .seat .stack {
+    font-size:11px
+  }
+  .hole {
+    width:23px;
+    height:31px
+  }
+  .table-footer {
+    padding:14px 20px
+  }
+}
+
+/* Sichtbare Diagnose, wenn die Dateivorschau Skripte deaktiviert. */
+.runtime-help {
+  margin: 10px 4px 6px;
+  padding: 12px 14px;
+  border: 1px solid #d6aa5a;
+  border-radius: 10px;
+  background: #3a2c1c;
+  color: #fff0d2;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.runtime-help[hidden] { display: none !important; }
+
+</style>
+  <style>
+/* Poker Recall – Animationen (dauerhafte Sitzplatz-DOMs vorausgesetzt) */
+.seat .holecards {
+  transform-origin: center center;
+  transition: transform 480ms cubic-bezier(.22,.76,.38,1), opacity 480ms ease;
+  will-change: transform, opacity;
+}
+.seat.folded .holecards {
+  transform: translateY(23px) translateX(10px) rotate(-28deg) scale(.32);
+  opacity: 0;
+}
+.seat .person {
+  transition: opacity 360ms ease, filter 360ms ease;
+}
+.seat.folded .person { filter: grayscale(.75); }
+.seat.is-active .person { animation: active-pulse 1s ease-in-out infinite alternate; }
+@keyframes active-pulse {
+  from { box-shadow: 0 0 0 2px #dfbe7960, 0 4px 12px #0008; }
+  to   { box-shadow: 0 0 0 3px #dfbe7990, 0 4px 17px #0009; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seat .holecards, .seat .person, .seat.is-active .person {
+    animation: none;
+    transition: none;
+  }
+}
+
+</style>
+</head>
+<body>
+ <main class="app">
+  <header class="heading">
+   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V2</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
+   <div class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></div>
+  </header>
+  <section class="sticky-game" aria-label="Pokertisch">
+   <div class="table-header"><div><span class="pulse"></span><span id="street-title">BEREIT · 9 SPIELER</span></div><span id="round-label">BLINDS 10 / 20</span></div>
+   <div class="table-wrap">
+    <div class="felt"><div class="felt-inner"></div><div class="pot-label">POT <b id="pot">30</b></div><div class="board" id="board"></div><div class="table-title">POKER <span>RECALL</span></div></div>
+    <div id="seats"></div>
+   </div>
+   <div class="table-footer">
+    <button id="start" type="button" class="primary"><span>♠</span> Erste Hand starten <span class="arrow">→</span></button>
+    <div class="speed-control"><label for="speed">TEMPO</label><select id="speed"><option value="1400">Entspannt</option><option value="850" selected>Normal</option><option value="420">Schnell</option></select></div>
+   </div>
+   <div class="runtime-help" id="runtime-help" role="status">
+    ⚠️ <strong>Spiel nicht gestartet:</strong> Diese Dateivorschau führt kein JavaScript aus oder blockiert es. Die HTML-Datei muss in einem vollständigen Browser bzw. auf einer Webseite geöffnet werden. In der ChatGPT-Dateivorschau funktioniert der Startknopf möglicherweise nicht.
+   </div>
+  </section>
+  <section class="below">
+   <div class="street-progress" id="progress"><span class="active">01 <b>Preflop</b></span><span>02 <b>Flop</b></span><span>03 <b>Turn</b></span><span>04 <b>River</b></span></div>
+   <div class="section-title"><div class="eyebrow" id="phase-label">01 / BEOBACHTEN</div><h2 id="phase-title">Neun Spieler. Wer macht was?</h2><p id="instructions">Beobachte die Aktionen. Danach erinnerst du dich an die letzte Aktion jedes Spielers dieser Runde.</p></div>
+   <div class="live-action" id="live-action"><div class="live-icon">♣</div><div id="action-text">Der Tisch ist bereit. Starte deine erste Hand.</div></div>
+   <div id="history" class="history"></div>
+   <div class="players-panel"><div class="panel-heading"><span>SPIELER</span><span>CHIPS · STATUS</span></div><div id="player-list" class="player-list"></div></div>
+   <section id="quiz" class="quiz" hidden><div class="quiz-top"><div class="eyebrow">02 / ERINNERN</div><h2>Was war die letzte Aktion?</h2><p>Tippe für jeden Spieler eine Antwort. Falsches erscheint rot, die richtige Antwort grün.</p></div><div id="questions"></div><button id="next" class="primary next" disabled>Nächste Runde →</button></section>
+   <section id="showdown" class="showdown" hidden></section>
+   <div class="footnote">Texas Hold’em · 9 Positionen · 10/20 Blinds · realistische Setzrunden mit Re-Raises, All-ins, Main- und Side-Pots. Automatische Zufallssimulation für das Gedächtnistraining.</div>
+  </section>
+ </main>
+ <script>
+/**
+ * Poker Recall – Texas Hold’em Spiel-Engine.
+ * Unabhängig vom DOM; kann mit Node.js getestet werden.
+ */
+(function(root) {
+'use strict';
+const POSITIONS=['SB','BB','UTG','UTG+1','UTG+2','LJ','HJ','CO','BTN'];
+const STREETS=['Preflop','Flop','Turn','River'];
+const RANKS='23456789TJQKA';
+const SUITS=['♠','♥','♦','♣'];
+const rand=(n)=>Math.floor(Math.random()*n);
+const deep=(v)=>JSON.parse(JSON.stringify(v));
+function deck() { const a=[]; for(const s of SUITS) for(let r=2;r<=14;r++) a.push({r,s}); for(let i=a.length-1;i>0;i--){ const j=rand(i+1); [a[i],a[j]]=[a[j],a[i]];}return a;}
+function cardString(c){return RANKS[c.r-2]+c.s;}
+function evaluate5(cs) {
+ const ranks=cs.map(x=>x.r).sort((a,b)=>b-a), counts=new Map();
+ for (const r of ranks)counts.set(r,(counts.get(r)||0)+1);
+ const groups=[...counts].map(([r,n])=>({r,n})).sort((a,b)=>b.n-a.n||b.r-a.r);
+ const uniq=[...new Set(ranks)]; if(uniq.includes(14))uniq.push(1);
+ let straight=0; for(let i=0;i<=uniq.length-5;i++)if(uniq[i]-uniq[i+4]===4){straight=uniq[i];break;}
+ const flush=cs.every(x=>x.s===cs[0].s);
+ if(flush && straight) return [8,straight];
+ if(groups[0].n===4)return [7,groups[0].r,groups[1].r];
+ if(groups[0].n===3&&groups[1].n>=2)return [6,groups[0].r,groups[1].r];
+ if(flush)return [5,...ranks];
+ if(straight)return [4,straight];
+ if(groups[0].n===3)return [3,groups[0].r,...groups.slice(1).map(x=>x.r).sort((a,b)=>b-a)];
+ if(groups[0].n===2&&groups[1].n===2){const pairs=[groups[0].r,groups[1].r].sort((a,b)=>b-a);return [2,...pairs,groups[2].r];}
+ if(groups[0].n===2)return [1,groups[0].r,...groups.slice(1).map(x=>x.r).sort((a,b)=>b-a)];
+ return [0,...ranks];
+}
+function compare(a,b){for(let i=0;i<Math.max(a.length,b.length);i++){let d=(a[i]||0)-(b[i]||0);if(d)return Math.sign(d);}return 0;}
+function evaluate7(cs){let best=null;for(let a=0;a<3;a++)for(let b=a+1;b<4;b++)for(let c=b+1;c<5;c++)for(let d=c+1;d<6;d++)for(let e=d+1;e<7;e++){const x=evaluate5([cs[a],cs[b],cs[c],cs[d],cs[e]]);if(!best||compare(x,best)>0)best=x;}return best;}
+const HANDS=['High Card','Ein Paar','Zwei Paare','Drilling','Straight','Flush','Full House','Vierling','Straight Flush'];
+function createHand(opts={}){
+ const sb=Number(opts.sb)||10, bb=Number(opts.bb)||20, raw=opts.stacks||POSITIONS.map(()=>((Math.random()<.12?10+rand(25):80+rand(65))*bb));
+ const cards=deck();let take=()=>cards.pop();
+ const p=POSITIONS.map((name,i)=>({id:i,name,stack:Math.max(1,raw[i]||400),committed:0,streetBet:0,folded:false,allIn:false,cards:[take(),take()],lastAction:null}));
+ const board=Array.from({length:5},take);
+ const originalStacks=p.map(x=>x.stack), snapshots=[];
+ let pot=0,currentBet=0,lastFullRaise=bb,raiseCount=0;
+ const events=[[],[],[],[]];
+ function invest(pl,amount){const paid=Math.min(Math.max(0,amount),pl.stack);pl.stack-=paid;pl.streetBet+=paid;pl.committed+=paid;pot+=paid;if(pl.stack===0)pl.allIn=true;return paid;}
+ invest(p[0],sb); invest(p[1],bb); currentBet=Math.max(p[0].streetBet,p[1].streetBet);
+ const init=p.map(pl=>({stack:pl.stack,committed:pl.committed,streetBet:pl.streetBet}));
+ function eligible(){return p.filter(x=>!x.folded&&!x.allIn).map(x=>x.id);}
+ function live(){return p.filter(x=>!x.folded);}
+ function clockwise(from,ids){const q=[];for(let k=1;k<=9;k++){let i=(from+k)%9;if(ids.includes(i))q.push(i);}return q;}
+ function runStreet(street){
+  if(street>0){for(const pl of p)pl.streetBet=0;currentBet=0;lastFullRaise=bb;raiseCount=0;}
+  let q=street===0?[2,3,4,5,6,7,8,0,1].filter(i=>eligible().includes(i)): [0,1,2,3,4,5,6,7,8].filter(i=>eligible().includes(i));
+  let safety=0,actedSinceFullRaise=new Set();
+  while(q.length&&live().length>1&&++safety<110){
+   const i=q.shift(),pl=p[i];if(pl.folded||pl.allIn)continue;
+   const toCall=Math.max(0,currentBet-pl.streetBet),canRaise=eligible().length>1 && !actedSinceFullRaise.has(i) && pl.stack>toCall+lastFullRaise && raiseCount<4;
+   let kind,put=0;
+   let random=Math.random();
+   if(toCall>0){
+    if(random<(.22+(toCall>pl.stack*.40?.20:0)) ){kind='Fold';pl.folded=true;}
+    else if(canRaise&&random>.88){kind='Raise';const raise=lastFullRaise*(1+rand(3));put=invest(pl,toCall+raise);}
+    else {put=invest(pl,toCall);kind=pl.allIn?'All-in':'Call';}
+   }else{
+    if(canRaise&&random>.78){kind=currentBet?'Raise':'Bet';const raise=Math.max(bb,lastFullRaise)*(1+rand(3));put=invest(pl,raise);}
+    else{kind='Check';}
+   }
+   if((kind==='Raise'||kind==='Bet')){
+    const previous=currentBet,additional=pl.streetBet-previous;currentBet=pl.streetBet;
+    if(additional>=lastFullRaise){lastFullRaise=additional;raiseCount++;actedSinceFullRaise.clear();q=clockwise(i,eligible().filter(id=>id!==i));}
+    else {kind='All-in';q=clockwise(i,eligible().filter(id=>id!==i&&p[id].streetBet<currentBet));}
+   }
+   actedSinceFullRaise.add(i);
+   if(pl.allIn&&kind!=='Fold')kind='All-in';
+   pl.lastAction=kind;
+   events[street].push({id:i,action:kind,put,bet:pl.streetBet,stack:pl.stack,committed:pl.committed,pot,currentBet,folded:pl.folded,allIn:pl.allIn,text:`${pl.name}: ${kind}${put?' · '+put+' Chips':''}`});
+   if(eligible().length<=1&&live().length>1){const only=eligible()[0];if(only===undefined || p[only].streetBet>=currentBet)q=[];else q=[only];}
+  }
+  snapshots.push(deep(p));
+ }
+ let lastStreetPlayed=-1;
+ for(let s=0;s<4;s++){
+  if(live().length<=1)break;
+  lastStreetPlayed=s;
+  if(eligible().length>1)runStreet(s);
+  else { // Kein sinnvoller Einsatz mehr möglich: restliche Gemeinschaftskarten werden aufgedeckt.
+   snapshots.push(deep(p));
+  }
+ }
+ const uncontested=live().length===1;
+ const boardToShow=uncontested?[0,3,4,5][Math.max(0,lastStreetPlayed)]:5;
+ const pots=[];let refunds=[];
+ const levels=[...new Set(p.map(x=>x.committed).filter(Boolean))].sort((a,b)=>a-b);
+ let last=0;
+ for(let level of levels){const contributors=p.filter(x=>x.committed>=level),amount=(level-last)*contributors.length;last=level;
+  if(contributors.length===1){contributors[0].stack+=amount;refunds.push({id:contributors[0].id,amount});continue;}
+  const eligibleIds=contributors.filter(x=>!x.folded).map(x=>x.id);
+  const prev=pots[pots.length-1];
+  if(prev && prev.eligible.join(',')===eligibleIds.join(','))prev.amount+=amount;
+  else pots.push({amount,eligible:eligibleIds,winners:[],hand:null});
+ }
+ const ranks=p.map(pl=>!pl.folded?evaluate7([...pl.cards,...board]):null);
+ let award=0;
+ for(let potObj of pots){
+  if(!potObj.eligible.length)throw new Error('Pot ohne berechtigten Spieler');
+  let top=potObj.eligible[0];for(const i of potObj.eligible)if(compare(ranks[i],ranks[top])>0)top=i;
+  const winners=potObj.eligible.filter(i=>compare(ranks[i],ranks[top])===0);
+  potObj.winners=winners;potObj.hand=uncontested?'Alle anderen gefoldet':HANDS[ranks[top][0]];
+  const share=Math.floor(potObj.amount/winners.length),extra=potObj.amount%winners.length;
+  for(let j=0;j<winners.length;j++)p[winners[j]].stack+=share+(j<extra?1:0);
+  award+=potObj.amount;
+ }
+ const final=p.map(x=>({stack:x.stack,committed:x.committed,folded:x.folded,allIn:x.allIn,cards:x.cards,hand:!x.folded?HANDS[ranks[x.id][0]]:null}));
+ const totalBefore=originalStacks.reduce((a,b)=>a+b,0),totalAfter=final.reduce((a,b)=>a+b.stack,0);
+ if(totalBefore!==totalAfter)throw new Error(`Chip-Bilanz fehlerhaft ${totalBefore} != ${totalAfter}`);
+ return {positions:POSITIONS,streets:STREETS,players:p.map(x=>({id:x.id,name:x.name,cards:x.cards})),init,originalStacks,board,events,snapshots,pots,refunds,final,uncontested,boardToShow,blinds:[sb,bb],initialPot:init.reduce((a,b)=>a+b.committed,0),totalBefore,totalAfter};
+}
+root.PokerEngine={createHand,cardString,evaluate5,evaluate7,compare,HANDS,POSITIONS,STREETS};
+if(typeof module!=='undefined'&&module.exports)module.exports=root.PokerEngine;
+})(typeof window==='undefined'?globalThis:window);
+
+</script>
+ <script>
+/**
+ * Poker Recall – Oberfläche, Abläufe und Quiz.
+ * Die Spiellogik liegt separat in engine.js.
+ */
+(()=>{
+'use strict';
+const E=window.PokerEngine;
+const $=id=>document.getElementById(id);
+const xy=[[30,88],[10,71],[6,42],[22,15],[49,5],[76,15],[94,42],[90,71],[70,88]];
+const kinds=['Fold','Check','Call','Bet','Raise','All-in'];
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+let hand=null,state=null,street=0,mode='idle',token=0,score=0,total=0,answered=new Set(),lastActions={};
+let pot=30,shown=0,actor=null,log=[];
+const fmt=n=>new Intl.NumberFormat('de-DE').format(n);
+const visible=(id,display)=>$(id).hidden=!display;
+function card(c){return `<div class="board-card${(c.s==='♥'||c.s==='♦')?' red':''}">${E.cardString(c)}</div>`;}
+function renderBoard(){ $('board').innerHTML=Array.from({length:5},(_,i)=>i<shown?card(hand.board[i]):'<div class="board-ghost"></div>').join('');}
+function cardHole(c,face){if(!face)return '<div class="hole"></div>';return `<div class="hole face${(c.s==='♥'||c.s==='♦')?' red':''}">${E.cardString(c)}</div>`;}
+function renderSeats(){
+ if(!state)return;
+ const host=$('seats');
+ // Sitzplätze werden nur einmal angelegt und bei jeder Aktion aktualisiert.
+ // Dadurch bleiben die DOM-Elemente bestehen und Fold-Übergänge animieren wirklich.
+ if(host.children.length!==state.length){
+  host.innerHTML=state.map((p,i)=>`<div class="seat" style="--x:${xy[i][0]}%;--y:${xy[i][1]}%"><div class="holecards"><div class="hole"></div><div class="hole"></div></div><div class="person"><div class="name">${hand.players[i].name}</div><div class="stack"></div></div><div class="chip-state"></div></div>`).join('');
+ }
+ state.forEach((p,i)=>{
+  const seat=host.children[i];
+  const face=mode==='showdown'&&!hand.uncontested&&!p.folded;
+  const win=mode==='showdown'&&p.stack>hand.originalStacks[i];
+  seat.classList.toggle('folded',Boolean(p.folded));
+  seat.classList.toggle('is-active',actor===i);
+  seat.classList.toggle('is-winner',Boolean(win));
+  seat.querySelector('.holecards').innerHTML=cardHole(hand.players[i].cards[0],face)+cardHole(hand.players[i].cards[1],face);
+  seat.querySelector('.name').textContent=hand.players[i].name;
+  seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
+  seat.querySelector('.chip-state').textContent=p.folded?'FOLD':p.allIn?'ALL-IN':actor===i?'AM ZUG':win?'GEWINNER':'';
+ });
+}
+function renderList(){
+ if(!state)return;
+ $('player-list').innerHTML=state.map((p,i)=>`<div class="player-row${p.folded?' folded':''}${p.allIn?' allin':''}"><span class="number">${String(i+1).padStart(2,'0')}</span><span class="position">${hand.players[i].name}</span><span class="amount">${fmt(p.stack)} ♣</span><span class="status">${p.folded?'Fold':p.allIn?'All-in':'Im Spiel'}</span></div>`).join('');
+}
+function render(){if(!hand)return;$('pot').textContent=fmt(pot);renderBoard();renderSeats();renderList();$('score').textContent=`${score} / ${total}`;}
+function progress(){
+ const s=[...$('progress').children];for(let i=0;i<4;i++)s[i].className=i<street?'done':i===street?'active':'';
+ $('street-title').textContent=`${E.STREETS[street].toUpperCase()} · ${mode==='watch'?'BEOBACHTEN':mode==='quiz'?'ERINNERN':mode==='showdown'?'SHOWDOWN':'BEREIT'}`;
+ $('round-label').textContent=`RUNDE ${street+1} / 4`;
+}
+function setLive(text){$('action-text').textContent=text;}
+function setPhase(tag,title,desc){$('phase-label').textContent=tag;$('phase-title').textContent=title;$('instructions').textContent=desc;}
+function updateLog(){ $('history').innerHTML=log.slice(-5).map(x=>`<span>${x}</span>`).join(''); }
+function initialize(){
+ token++;hand=E.createHand();mode='watch';street=0;actor=null;score=0;total=0;pot=hand.initialPot;shown=0;log=[];answered=new Set();lastActions={};
+ state=hand.players.map((p,i)=>({...hand.init[i],folded:false,allIn:hand.init[i].stack===0}));
+ visible('quiz',false);visible('showdown',false);$('history').classList.remove('is-hidden');$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">↻</span>';
+ $('live-action').hidden=false;setLive('Die Karten sind verteilt. UTG beginnt vor dem Flop.');
+ setPhase('01 / BEOBACHTEN','Neun Spieler. Wer macht was?','Merke dir die jeweils letzte Aktion eines Spielers in dieser Setzrunde. Ein Raise kann weitere Aktionen auslösen.');
+ progress();render();return token;
+}
+async function playRound(id){
+ if(id!==token)return;
+ mode='watch';actor=null;answered=new Set();lastActions={};log=[];
+ $('history').classList.remove('is-hidden');visible('quiz',false);visible('showdown',false);$('live-action').hidden=false;
+ shown=[0,3,4,5][street];
+ setPhase('01 / BEOBACHTEN',`${E.STREETS[street]} · Aktionen beobachten`,'Achte auf Folds, Checks, Calls, Bets, Raises und All-ins. Derselbe Spieler kann mehrmals an der Reihe sein.');
+ setLive(street===0?'UTG ist als Erster an der Reihe.':'Die Setzrunde startet beim ersten aktiven Spieler ab SB.');
+ if(street!==0)state.forEach((p)=>{p.streetBet=0;});
+ progress();render();
+ await sleep(500);if(id!==token)return;
+ const current=hand.events[street];
+ for(const action of current){
+  actor=action.id;
+  const p=state[action.id];Object.assign(p,{stack:action.stack,committed:action.committed,streetBet:action.bet,folded:action.folded,allIn:action.allIn});
+  pot=action.pot;lastActions[action.id]=action.action;
+  setLive(action.text);log.push(action.text);updateLog();render();
+  await sleep(Number($('speed').value));if(id!==token)return;
+ }
+ actor=null;render();await sleep(350);if(id!==token)return;
+ startQuiz();
+}
+function startQuiz(){
+ mode='quiz';progress();$('history').classList.add('is-hidden');
+ setPhase('02 / ERINNERN',`${E.STREETS[street]} · Gedächtnistest`,'Die Aktionen sind ausgeblendet. Gefoldete Spieler bleiben rot durchgestrichen markiert – wie am echten Tisch.');
+ setLive('Welche letzte Aktion hat jeder Spieler in dieser Runde ausgeführt?');
+ const players=Object.keys(lastActions).map(Number).sort((a,b)=>a-b);
+ const quiz=$('questions');
+ if(!players.length){quiz.innerHTML='<p>Keine Setzaktionen mehr: Die verbleibenden Spieler sind All-in oder die Hand ist entschieden.</p>';}
+ else quiz.innerHTML=players.map(i=>`<div class="question${state[i].folded?' folded':''}" data-player="${i}"><div class="question-head"><strong>${hand.players[i].name}</strong><small>LETZTE AKTION?</small></div><div class="choices">${kinds.map(k=>`<button type="button" class="choice" data-choice="${k}">${k}</button>`).join('')}</div></div>`).join('');
+ quiz.querySelectorAll('button[data-choice]').forEach(b=>b.addEventListener('click',onChoice));
+ $('next').disabled=players.length>0;$('next').textContent=street===3||hand.events.slice(street+1).every(a=>!a.length)?'Showdown zeigen →':'Nächste Runde →';
+ visible('quiz',true);render();
+}
+function onChoice(e){
+ const btn=e.currentTarget,container=btn.closest('.question'),i=Number(container.dataset.player);if(answered.has(i))return;
+ const answer=btn.dataset.choice,correct=lastActions[i];answered.add(i);total++;
+ const ok=answer===correct;if(ok)score++;
+ container.querySelectorAll('.choice').forEach(b=>{
+  b.disabled=true;if(b.dataset.choice===correct)b.classList.add('correct');else if(b===btn)b.classList.add('wrong');
+ });
+ container.querySelector('small').textContent=ok?'RICHTIG ✓':`RICHTIG: ${correct}`;
+ $('score').textContent=`${score} / ${total}`;
+ if(answered.size===Object.keys(lastActions).length)$('next').disabled=false;
+}
+function moveNext(){
+ if(mode!=='quiz')return;
+ if(street>=3 || hand.events.slice(street+1).every(a=>a.length===0)){finish();return;}
+ street++;playRound(token);
+}
+function finish(){
+ mode='showdown';actor=null;shown=hand.boardToShow;pot=hand.pots.reduce((a,x)=>a+x.amount,0);
+ state=hand.final.map((pl)=>({...pl}));
+ progress();setPhase('03 / AUSWERTUNG',hand.uncontested?'Gewonnen ohne Showdown':'Showdown · Die Gewinner',hand.uncontested?'Alle Gegner sind ausgestiegen. Nicht ausgespielte Gemeinschaftskarten bleiben verdeckt.':'Alle fünf Gemeinschaftskarten sind aufgedeckt. Die Chip-Verteilung berücksichtigt getrennte Side-Pots und mögliche Split-Pots.');
+ $('history').classList.add('is-hidden');visible('quiz',false);$('live-action').hidden=false;
+ const winners=[...new Set(hand.pots.flatMap(p=>p.winners))].map(i=>hand.players[i].name).join(' · ');
+ setLive(`Hand beendet. ${winners || 'Kein Gewinner'} ${winners.includes('·')?'gewinnen':'gewinnt'}.`);
+ const pots=hand.pots.map((pot,i)=>{
+  const players=pot.winners.map(id=>hand.players[id].name).join(' + ');
+  return `<div class="pot-result"><b>${i?'Side-Pot '+i:'Main Pot'} · ${fmt(pot.amount)} Chips</b><br>Gewinner: ${players}<br><span>${pot.hand}${pot.winners.length>1?' · Split Pot':''}</span></div>`;
+ }).join('');
+ const refund=hand.refunds.length?`<p>Nicht gecallte Einsätze zurück: ${hand.refunds.map(r=>hand.players[r.id].name+' '+fmt(r.amount)).join(', ')} Chips.</p>`:'';
+ $('showdown').innerHTML=`<div class="eyebrow">03 / SHOWDOWN</div><h2>♠ ${hand.uncontested?'Hand ohne Showdown beendet':'Hand abgeschlossen'}</h2><p>${fmt(hand.totalBefore)} Chips insgesamt · ${fmt(hand.totalAfter)} Chips nach Auszahlung – die Bilanz stimmt.</p>${pots}${refund}<p>Eine weitere Hand kannst du direkt unter dem Tisch starten. Dein Ergebnis: <b>${score} von ${total}</b> richtigen Antworten.</p>`;
+ visible('showdown',true);$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">→</span>';render();
+}
+$('start').addEventListener('click',()=>{
+ try { const id=initialize();playRound(id); }
+ catch(error) {
+  console.error('Poker Recall: Startfehler',error);
+  const help=$('runtime-help');
+  help.textContent='⚠️ Beim Start ist ein Fehler aufgetreten: '+String(error.message || error);
+  help.hidden=false;
+ }
+});
+$('next').addEventListener('click',moveNext);
+// Die Spieloberfläche bleibt vor der ersten Hand vollständig sichtbar.
+const initial=E.POSITIONS.map((name,i)=>({id:i,name,cards:[]}));
+hand={players:initial,board:[],originalStacks:[]};state=initial.map((x,i)=>({stack:2000,folded:false,allIn:false}));
+render();$('street-title').textContent='BEREIT · 9 SPIELER';$('round-label').textContent='BLINDS 10 / 20';
+// Skripte wurden ausgeführt, daher die Vorschau-Warnung ausblenden.
+$('runtime-help').hidden=true;
+})();
+
+</script>
+</body>
+</html>
