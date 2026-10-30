@@ -775,3 +775,6 @@ h1 em {
   }
 }
 
+
+/* Equity directly at each seat during replay */
+.seat-equity:not([hidden]){display:block;position:relative;z-index:3;width:max-content;max-width:110px;margin:2px auto;padding:3px 6px;border:1px solid #dfbe79;border-radius:7px;background:#14251f;color:#ffe3a0;font-size:clamp(9px,2.4vw,12px);font-weight:900;letter-spacing:.02em;white-space:nowrap;box-shadow:0 2px 8px #0009}
