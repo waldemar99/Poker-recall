@@ -324,6 +324,9 @@ h1 em {
   min-height:10px
 }
 
+.seat .chip-state.quiz-selected{color:#ffd36c;background:#5c451e;border-radius:5px;padding:2px 4px}
+.seat .chip-state.quiz-correct{color:#46d5a1}
+.seat .chip-state.quiz-wrong{color:#fa7477;font-size:7px}
 .seat.folded .chip-state {
   color:var(--red)
 }
@@ -1003,7 +1006,13 @@ function renderSeats(){
   seat.querySelector('.name').textContent=hand.players[i].name;
   seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
   seat.querySelector('.table-bet').textContent=(mode==='watch'&&p.streetBet>0)?fmt(p.streetBet):'';
-  seat.querySelector('.chip-state').textContent=p.folded?'FOLD':(mode==='watch'&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':'');
+  const tag=seat.querySelector('.chip-state');
+  const selected=mode==='quiz'&&selections.has(i);
+  tag.textContent=mode==='quiz'?(selected?selections.get(i).toUpperCase():p.folded?'FOLD':''):(p.folded?'FOLD':(mode==='watch'&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':''));
+  tag.classList.toggle('quiz-selected',selected&&!checked);
+  tag.classList.toggle('quiz-correct',selected&&checked&&selections.get(i)===lastActions[i]);
+  tag.classList.toggle('quiz-wrong',selected&&checked&&selections.get(i)!==lastActions[i]);
+  if(mode==='quiz'&&checked&&selected&&selections.get(i)!==lastActions[i])tag.textContent=selections.get(i).toUpperCase()+' ✗ · '+lastActions[i].toUpperCase()+' ✓';
  });
 }
 function flyChips(from,to,count=2){
@@ -1089,6 +1098,7 @@ function onChoice(e){
  container.querySelectorAll('.choice').forEach(b=>b.classList.toggle('selected',b===btn));
  container.querySelector('small').textContent='AUSGEWÄHLT: '+btn.dataset.choice.toUpperCase();
  $('check').disabled=selections.size!==Object.keys(lastActions).length;
+ renderSeats();
 }
 function checkAnswers(){
  if(checked||selections.size!==Object.keys(lastActions).length)return;
@@ -1105,6 +1115,7 @@ function checkAnswers(){
  });
  $('score').textContent=`${score} / ${total}`;
  $('check').hidden=true;$('next').hidden=false;$('next').disabled=false;
+ renderSeats();
 }
 function moveNext(){
  if(mode!=='quiz')return;
