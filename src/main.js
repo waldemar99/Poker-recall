@@ -1,3 +1,5 @@
+import './poker-engine.js';
+import './style.css';
 
 /**
  * Poker Recall – Oberfläche, Abläufe und Quiz.
