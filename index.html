@@ -245,7 +245,7 @@ h1 em {
   text-align:center
 }
 
-.seat .dealer-button{position:absolute;top:-10px;right:-9px;width:23px;height:23px;border-radius:50%;display:grid;place-items:center;background:#f6eee0;color:#222a2c;border:2px solid #c9b787;box-shadow:0 2px 6px #0009;font-size:12px;font-weight:950;z-index:4}
+.seat .dealer-button{position:absolute;top:22px;right:-15px;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#f6eee0;color:#222a2c;border:2px solid #c9b787;box-shadow:0 2px 6px #0009;font-size:12px;font-weight:950;z-index:4}
 
 .seat .person {
   background:#16292b;
@@ -781,7 +781,7 @@ h1 em {
 <body>
  <main class="app">
   <header class="heading">
-   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V2</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
+   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V3 · D</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
    <div class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></div>
   </header>
   <section class="sticky-game" aria-label="Pokertisch">
@@ -999,6 +999,7 @@ function renderSeats(){
  }
  state.forEach((p,i)=>{
   const seat=host.children[i];
+  if(i===8&&!seat.querySelector('.dealer-button'))seat.insertAdjacentHTML('beforeend','<div class="dealer-button" aria-label="Dealer Button">D</div>');
   const face=mode==='showdown'&&!hand.uncontested&&!p.folded;
   const win=mode==='showdown'&&p.stack>hand.originalStacks[i];
   seat.classList.toggle('folded',Boolean(p.folded));
