@@ -245,6 +245,8 @@ h1 em {
   text-align:center
 }
 
+.seat .dealer-button{position:absolute;top:-10px;right:-9px;width:23px;height:23px;border-radius:50%;display:grid;place-items:center;background:#f6eee0;color:#222a2c;border:2px solid #c9b787;box-shadow:0 2px 6px #0009;font-size:12px;font-weight:950;z-index:4}
+
 .seat .person {
   background:#16292b;
   border:1px solid #385951;
@@ -993,7 +995,7 @@ function renderSeats(){
  // Sitzplätze werden nur einmal angelegt und bei jeder Aktion aktualisiert.
  // Dadurch bleiben die DOM-Elemente bestehen und Fold-Übergänge animieren wirklich.
  if(host.children.length!==state.length){
-  host.innerHTML=state.map((p,i)=>`<div class="seat" style="--x:${xy[i][0]}%;--y:${xy[i][1]}%"><div class="holecards"><div class="hole"></div><div class="hole"></div></div><div class="person"><div class="name">${hand.players[i].name}</div><div class="stack"></div></div><div class="chip-state"></div><div class="table-bet"></div></div>`).join('');
+  host.innerHTML=state.map((p,i)=>`<div class="seat" style="--x:${xy[i][0]}%;--y:${xy[i][1]}%"><div class="holecards"><div class="hole"></div><div class="hole"></div></div><div class="person"><div class="name">${hand.players[i].name}</div><div class="stack"></div></div><div class="chip-state"></div><div class="table-bet"></div>${i===8?'<div class="dealer-button" aria-label="Dealer Button">D</div>':''}</div>`).join('');
  }
  state.forEach((p,i)=>{
   const seat=host.children[i];
