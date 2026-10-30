@@ -845,33 +845,66 @@ function createHand(opts={}){
  function live(){return p.filter(x=>!x.folded);}
  function clockwise(from,ids){const q=[];for(let k=1;k<=9;k++){let i=(from+k)%9;if(ids.includes(i))q.push(i);}return q;}
  function runStreet(street){
-  if(street>0){for(const pl of p)pl.streetBet=0;currentBet=0;lastFullRaise=bb;raiseCount=0;}
-  let q=street===0?[2,3,4,5,6,7,8,0,1].filter(i=>eligible().includes(i)): [0,1,2,3,4,5,6,7,8].filter(i=>eligible().includes(i));
-  let safety=0,actedSinceFullRaise=new Set();
-  while(q.length&&live().length>1&&++safety<110){
-   const i=q.shift(),pl=p[i];if(pl.folded||pl.allIn)continue;
-   const toCall=Math.max(0,currentBet-pl.streetBet),canRaise=eligible().length>1 && !actedSinceFullRaise.has(i) && pl.stack>toCall+lastFullRaise && raiseCount<4;
+  // No-Limit Texas Hold'em: clockwise action, full-raise reopening, short all-ins.
+  if(street>0){for(const pl of p)pl.streetBet=0;currentBet=0;lastFullRaise=bb;}
+  const active=()=>p.filter(x=>!x.folded&&!x.allIn);
+  let q=street===0?[2,3,4,5,6,7,8,0,1].filter(i=>eligible().includes(i)):
+    [0,1,2,3,4,5,6,7,8].filter(i=>eligible().includes(i));
+  let actedSinceFullRaise=new Set(),safety=0;
+  while(q.length&&live().length>1&&++safety<300){
+   const i=q.shift(),pl=p[i];
+   if(pl.folded||pl.allIn)continue;
+   const toCall=Math.max(0,currentBet-pl.streetBet);
+   const canRaise=active().length>1&&!actedSinceFullRaise.has(i)&&pl.stack>toCall;
+   const canFullRaise=canRaise&&pl.stack>=toCall+lastFullRaise;
    let kind,put=0;
-   let random=Math.random();
+   const random=Math.random();
    if(toCall>0){
-    if(random<(.22+(toCall>pl.stack*.40?.20:0)) ){kind='Fold';pl.folded=true;}
-    else if(canRaise&&random>.88){kind='Raise';const raise=lastFullRaise*(1+rand(3));put=invest(pl,toCall+raise);}
-    else {put=invest(pl,toCall);kind=pl.allIn?'All-in':'Call';}
+    const pressure=toCall/Math.max(1,pl.stack+pl.streetBet);
+    if(random<Math.min(.72,.13+pressure*.45)){kind='Fold';pl.folded=true;}
+    else if(canFullRaise&&random>.82){
+     const raiseSize=lastFullRaise*(1+rand(3));
+     put=invest(pl,toCall+raiseSize);kind='Raise';
+    }else if(canRaise&&random>.95){
+     // Short stack may push for less than a minimum full raise.
+     put=invest(pl,pl.stack);kind='All-in';
+    }else {put=invest(pl,toCall);kind=pl.allIn?'All-in':'Call';}
    }else{
-    if(canRaise&&random>.78){kind=currentBet?'Raise':'Bet';const raise=Math.max(bb,lastFullRaise)*(1+rand(3));put=invest(pl,raise);}
-    else{kind='Check';}
+    if(canFullRaise&&random>.76){
+     const raiseSize=Math.max(bb,lastFullRaise)*(1+rand(3));
+     put=invest(pl,raiseSize);kind=currentBet?'Raise':'Bet';
+    }else if(canRaise&&random>.96){
+     put=invest(pl,pl.stack);kind='All-in';
+    }else kind='Check';
    }
-   if((kind==='Raise'||kind==='Bet')){
-    const previous=currentBet,additional=pl.streetBet-previous;currentBet=pl.streetBet;
-    if(additional>=lastFullRaise){lastFullRaise=additional;raiseCount++;actedSinceFullRaise.clear();q=clockwise(i,eligible().filter(id=>id!==i));}
-    else {kind='All-in';q=clockwise(i,eligible().filter(id=>id!==i&&p[id].streetBet<currentBet));}
+   const previousBet=currentBet;
+   if(pl.streetBet>currentBet){
+    const raiseSize=pl.streetBet-currentBet;
+    currentBet=pl.streetBet;
+    if(raiseSize>=lastFullRaise){
+     lastFullRaise=raiseSize;
+     actedSinceFullRaise.clear();
+     q=clockwise(i,eligible().filter(id=>id!==i));
+    }else{
+     // A short all-in does not reopen betting for players who already acted.
+     q=clockwise(i,eligible().filter(id=>id!==i&&(p[id].streetBet<currentBet||!actedSinceFullRaise.has(id))));
+    }
    }
    actedSinceFullRaise.add(i);
    if(pl.allIn&&kind!=='Fold')kind='All-in';
    pl.lastAction=kind;
-   events[street].push({id:i,action:kind,put,bet:pl.streetBet,stack:pl.stack,committed:pl.committed,pot,currentBet,folded:pl.folded,allIn:pl.allIn,text:`${pl.name}: ${kind}${put?' · '+put+' Chips':''}`});
-   if(eligible().length<=1&&live().length>1){const only=eligible()[0];if(only===undefined || p[only].streetBet>=currentBet)q=[];else q=[only];}
+   const total=pl.streetBet;
+   const actionDetail=kind==='Fold'||kind==='Check'?'':kind==='Call'?' · '+put+' Chips':
+     (kind==='Raise'||kind==='Bet')?' auf '+total+' Chips':
+     ' · '+put+' Chips (gesamt '+total+')';
+   events[street].push({id:i,action:kind,put,bet:total,stack:pl.stack,committed:pl.committed,pot,currentBet,folded:pl.folded,allIn:pl.allIn,text:pl.name+': '+kind+actionDetail});
+   if(live().length===1){q=[];break;}
+   if(active().length<=1){
+    // Last remaining player may only call or fold, never bet into an all-in.
+    q=q.filter(id=>p[id].streetBet<currentBet);
+   }
   }
+  if(safety>=300)throw new Error('Setzrunde hat Sicherheitslimit erreicht');
   snapshots.push(deep(p));
  }
  let lastStreetPlayed=-1;
