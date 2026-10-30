@@ -265,9 +265,15 @@ h1 em {
 }
 
 .seat.is-winner .person {
-  border-color:var(--gold);
-  background:#594625
+  border:2px solid #f6d46d;
+  background:#655022;
+  box-shadow:0 0 0 3px #f5d36b80,0 0 22px #f3c94d9c;
+  transform:scale(1.09)
 }
+.seat.is-winner .holecards {filter:drop-shadow(0 0 7px #f6d46d)}
+.seat.showdown-reveal.folded .holecards,.seat.showdown-reveal .holecards {opacity:1;transform:none}
+.seat.showdown-reveal .chip-state {font-weight:900}
+.seat.is-winner .chip-state {color:#ffdf7d}
 
 .seat .name {
   color:#f3f3e4;
@@ -781,7 +787,7 @@ h1 em {
 <body>
  <main class="app">
   <header class="heading">
-   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V8 · REPLAY</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
+   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V9 · SHOWDOWN</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
    <div class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></div>
   </header>
   <section class="sticky-game" aria-label="Pokertisch">
@@ -1004,11 +1010,12 @@ function renderSeats(){
  state.forEach((p,i)=>{
   const seat=host.children[i];
   if(i===8&&!seat.querySelector('.dealer-button'))seat.insertAdjacentHTML('beforeend','<div class="dealer-button" aria-label="Dealer Button">D</div>');
-  const face=mode==='showdown'&&!hand.uncontested&&!p.folded;
-  const win=mode==='showdown'&&p.stack>hand.originalStacks[i];
-  seat.classList.toggle('folded',Boolean(p.folded));
+  const face=mode==='showdown';
+  const win=mode==='showdown'&&hand.pots.some(pot=>pot.winners.includes(i));
+  seat.classList.toggle('folded',Boolean(p.folded)&&mode!=='showdown');
   seat.classList.toggle('is-active',actor===i);
   seat.classList.toggle('is-winner',Boolean(win));
+  seat.classList.toggle('showdown-reveal',mode==='showdown');
   seat.querySelector('.holecards').innerHTML=cardHole(hand.players[i].cards[0],face)+cardHole(hand.players[i].cards[1],face);
   seat.querySelector('.name').textContent=hand.players[i].name;
   seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
@@ -1016,7 +1023,7 @@ function renderSeats(){
   const tag=seat.querySelector('.chip-state');
   const entries=mode==='quiz'?quizEvents.map((ev,index)=>({ev,index})).filter(x=>x.ev.id===i):[];
   const chosen=entries.filter(x=>selections.has(x.index));
-  tag.textContent=mode==='quiz'?(chosen.length?chosen.map(x=>selections.get(x.index).toUpperCase()).join(' › '):p.folded?'FOLD':''):(p.folded?'FOLD':((mode==='watch'||mode==='replay')&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':''));
+  tag.textContent=mode==='quiz'?(chosen.length?chosen.map(x=>selections.get(x.index).toUpperCase()).join(' › '):p.folded?'FOLD':''):(p.folded?'FOLD':((mode==='watch'||mode==='replay')&&lastActions[i]?lastActions[i].toUpperCase():win?'🏆 GEWINNER':p.folded?'FOLD':p.allIn?'ALL-IN':''));
   tag.classList.toggle('quiz-selected',mode==='quiz'&&chosen.length>0&&!checked);
   tag.classList.toggle('quiz-correct',mode==='quiz'&&checked&&chosen.length>0&&chosen.every(x=>selections.get(x.index)===x.ev.action));
   tag.classList.toggle('quiz-wrong',mode==='quiz'&&checked&&chosen.some(x=>selections.get(x.index)!==x.ev.action));
