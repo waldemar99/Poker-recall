@@ -781,7 +781,7 @@ h1 em {
 <body>
  <main class="app">
   <header class="heading">
-   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V3 · D</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
+   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V4 · ALLE</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
    <div class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></div>
   </header>
   <section class="sticky-game" aria-label="Pokertisch">
@@ -804,7 +804,7 @@ h1 em {
    <div class="live-action" id="live-action"><div class="live-icon">♣</div><div id="action-text">Der Tisch ist bereit. Starte deine erste Hand.</div></div>
    <div id="history" class="history"></div>
    <div class="players-panel"><div class="panel-heading"><span>SPIELER</span><span>CHIPS · STATUS</span></div><div id="player-list" class="player-list"></div></div>
-   <section id="quiz" class="quiz" hidden><div class="quiz-top"><div class="eyebrow">02 / ERINNERN</div><h2>Was war die letzte Aktion?</h2><p>Wähle für jeden Spieler eine Antwort. Deine Auswahl bleibt sichtbar, bis du auf „Prüfen“ tippst.</p></div><div id="questions"></div><button id="check" class="primary next" disabled>Antworten prüfen ✓</button><button id="next" class="primary next" disabled>Nächste Runde →</button></section>
+   <section id="quiz" class="quiz" hidden><div class="quiz-top"><div class="eyebrow">02 / ERINNERN</div><h2>Welche Aktionen gab es?</h2><p>Wähle für jeden Spieler eine Antwort. Deine Auswahl bleibt sichtbar, bis du auf „Prüfen“ tippst.</p></div><div id="questions"></div><button id="check" class="primary next" disabled>Antworten prüfen ✓</button><button id="next" class="primary next" disabled>Nächste Runde →</button></section>
    <section id="showdown" class="showdown" hidden></section>
    <div class="footnote">Texas Hold’em · 9 Positionen · 10/20 Blinds · realistische Setzrunden mit Re-Raises, All-ins, Main- und Side-Pots. Automatische Zufallssimulation für das Gedächtnistraining.</div>
   </section>
@@ -982,7 +982,7 @@ const $=id=>document.getElementById(id);
 const xy=[[30,88],[10,71],[6,42],[22,15],[49,5],[76,15],[94,42],[90,71],[70,88]];
 const kinds=['Fold','Check','Call','Bet','Raise','All-in'];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-let hand=null,state=null,street=0,mode='idle',token=0,score=0,total=0,answered=new Set(),selections=new Map(),checked=false,lastActions={};
+let hand=null,state=null,street=0,mode='idle',token=0,score=0,total=0,answered=new Set(),selections=new Map(),checked=false,lastActions={},quizEvents=[];
 let pot=30,shown=0,actor=null,log=[];
 const fmt=n=>new Intl.NumberFormat('de-DE').format(n);
 const visible=(id,display)=>$(id).hidden=!display;
@@ -1010,12 +1010,13 @@ function renderSeats(){
   seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
   seat.querySelector('.table-bet').textContent=(mode==='watch'&&p.streetBet>0)?fmt(p.streetBet):'';
   const tag=seat.querySelector('.chip-state');
-  const selected=mode==='quiz'&&selections.has(i);
-  tag.textContent=mode==='quiz'?(selected?selections.get(i).toUpperCase():p.folded?'FOLD':''):(p.folded?'FOLD':(mode==='watch'&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':''));
-  tag.classList.toggle('quiz-selected',selected&&!checked);
-  tag.classList.toggle('quiz-correct',selected&&checked&&selections.get(i)===lastActions[i]);
-  tag.classList.toggle('quiz-wrong',selected&&checked&&selections.get(i)!==lastActions[i]);
-  if(mode==='quiz'&&checked&&selected&&selections.get(i)!==lastActions[i])tag.textContent=selections.get(i).toUpperCase()+' ✗ · '+lastActions[i].toUpperCase()+' ✓';
+  const entries=mode==='quiz'?quizEvents.map((ev,index)=>({ev,index})).filter(x=>x.ev.id===i):[];
+  const chosen=entries.filter(x=>selections.has(x.index));
+  tag.textContent=mode==='quiz'?(chosen.length?chosen.map(x=>selections.get(x.index).toUpperCase()).join(' › '):p.folded?'FOLD':''):(p.folded?'FOLD':(mode==='watch'&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':''));
+  tag.classList.toggle('quiz-selected',mode==='quiz'&&chosen.length>0&&!checked);
+  tag.classList.toggle('quiz-correct',mode==='quiz'&&checked&&chosen.length>0&&chosen.every(x=>selections.get(x.index)===x.ev.action));
+  tag.classList.toggle('quiz-wrong',mode==='quiz'&&checked&&chosen.some(x=>selections.get(x.index)!==x.ev.action));
+  if(mode==='quiz'&&checked&&chosen.length)tag.textContent=entries.map(x=>(selections.get(x.index)||'?').toUpperCase()+(selections.get(x.index)===x.ev.action?' ✓':' ✗')).join(' › ');
  });
 }
 function flyChips(from,to,count=2){
@@ -1051,19 +1052,19 @@ function setLive(text){$('action-text').textContent=text;}
 function setPhase(tag,title,desc){$('phase-label').textContent=tag;$('phase-title').textContent=title;$('instructions').textContent=desc;}
 function updateLog(){ $('history').innerHTML=log.slice(-5).map(x=>`<span>${x}</span>`).join(''); }
 function initialize(){
- token++;hand=E.createHand();mode='watch';street=0;actor=null;score=0;total=0;pot=hand.initialPot;shown=0;log=[];answered=new Set();selections=new Map();checked=false;lastActions={};
+ token++;hand=E.createHand();mode='watch';street=0;actor=null;score=0;total=0;pot=hand.initialPot;shown=0;log=[];answered=new Set();selections=new Map();checked=false;lastActions={};quizEvents=[];
  state=hand.players.map((p,i)=>({...hand.init[i],folded:false,allIn:hand.init[i].stack===0}));
  visible('quiz',false);visible('showdown',false);$('history').classList.remove('is-hidden');$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">↻</span>';
  $('live-action').hidden=false;setLive('Die Karten sind verteilt. UTG beginnt vor dem Flop.');
- setPhase('01 / BEOBACHTEN','Neun Spieler. Wer macht was?','Merke dir die jeweils letzte Aktion eines Spielers in dieser Setzrunde. Ein Raise kann weitere Aktionen auslösen.');
+ setPhase('01 / BEOBACHTEN','Neun Spieler. Wer macht was?','Merke dir jede Aktion in ihrer Reihenfolge. Ein Spieler kann mehrfach an der Reihe sein.');
  progress();render();return token;
 }
 async function playRound(id){
  if(id!==token)return;
- mode='watch';actor=null;answered=new Set();selections=new Map();checked=false;lastActions={};log=[];
+ mode='watch';actor=null;answered=new Set();selections=new Map();checked=false;lastActions={};quizEvents=[];log=[];
  $('history').classList.remove('is-hidden');visible('quiz',false);visible('showdown',false);$('live-action').hidden=false;
  shown=[0,3,4,5][street];
- setPhase('01 / BEOBACHTEN',`${E.STREETS[street]} · Aktionen beobachten`,'Achte auf Folds, Checks, Calls, Bets, Raises und All-ins. Derselbe Spieler kann mehrmals an der Reihe sein.');
+ setPhase('01 / BEOBACHTEN',`${E.STREETS[street]} · Aktionen beobachten`,'Merke dir alle Aktionen in ihrer Reihenfolge – auch mehrere Aktionen desselben Spielers.');
  setLive(street===0?'UTG ist als Erster an der Reihe.':'Die Setzrunde startet beim ersten aktiven Spieler ab SB.');
  if(street!==0)state.forEach((p)=>{p.streetBet=0;});
  progress();render();
@@ -1081,33 +1082,32 @@ async function playRound(id){
  startQuiz();
 }
 function startQuiz(){
- mode='quiz';progress();$('history').classList.add('is-hidden');
+ mode='quiz';quizEvents=hand.events[street];progress();$('history').classList.add('is-hidden');
  if(state.some(p=>p.streetBet>0))flyChips(document.querySelector('.seat .table-bet:not(:empty)'),document.querySelector('.pot-label'),3);
  setPhase('02 / ERINNERN',`${E.STREETS[street]} · Gedächtnistest`,'Die Aktionen sind ausgeblendet. Gefoldete Spieler bleiben rot durchgestrichen markiert – wie am echten Tisch.');
- setLive('Welche letzte Aktion hat jeder Spieler in dieser Runde ausgeführt?');
- const players=Object.keys(lastActions).map(Number).sort((a,b)=>a-b);
+ setLive('Erinnere dich an jede Aktion – auch wenn ein Spieler mehrfach dran war.');
  const quiz=$('questions');
- if(!players.length){quiz.innerHTML='<p>Keine Setzaktionen mehr: Die verbleibenden Spieler sind All-in oder die Hand ist entschieden.</p>';}
- else quiz.innerHTML=players.map(i=>`<div class="question${state[i].folded?' folded':''}" data-player="${i}"><div class="question-head"><strong>${hand.players[i].name}</strong><small>LETZTE AKTION?</small></div><div class="choices">${kinds.map(k=>`<button type="button" class="choice" data-choice="${k}">${k}</button>`).join('')}</div></div>`).join('');
+ if(!quizEvents.length){quiz.innerHTML='<p>Keine Setzaktionen mehr: Die verbleibenden Spieler sind All-in oder die Hand ist entschieden.</p>';}
+ else quiz.innerHTML=quizEvents.map((ev,index)=>`<div class="question${state[ev.id].folded?' folded':''}" data-event="${index}"><div class="question-head"><strong>${index+1}. ${hand.players[ev.id].name}</strong><small>AKTION ${index+1}?</small></div><div class="choices">${kinds.map(k=>`<button type="button" class="choice" data-choice="${k}">${k}</button>`).join('')}</div></div>`).join('');
  quiz.querySelectorAll('button[data-choice]').forEach(b=>b.addEventListener('click',onChoice));
- $('check').hidden=players.length===0;$('check').disabled=players.length>0;
- $('next').hidden=players.length>0;$('next').disabled=players.length>0;$('next').textContent=street===3||hand.events.slice(street+1).every(a=>!a.length)?'Showdown zeigen →':'Nächste Runde →';
+ $('check').hidden=quizEvents.length===0;$('check').disabled=quizEvents.length>0;
+ $('next').hidden=quizEvents.length>0;$('next').disabled=quizEvents.length>0;$('next').textContent=street===3||hand.events.slice(street+1).every(a=>!a.length)?'Showdown zeigen →':'Nächste Runde →';
  visible('quiz',true);render();
 }
 function onChoice(e){
  if(checked)return;
- const btn=e.currentTarget,container=btn.closest('.question'),i=Number(container.dataset.player);
- selections.set(i,btn.dataset.choice);
+ const btn=e.currentTarget,container=btn.closest('.question'),index=Number(container.dataset.event);
+ selections.set(index,btn.dataset.choice);
  container.querySelectorAll('.choice').forEach(b=>b.classList.toggle('selected',b===btn));
  container.querySelector('small').textContent='AUSGEWÄHLT: '+btn.dataset.choice.toUpperCase();
- $('check').disabled=selections.size!==Object.keys(lastActions).length;
+ $('check').disabled=selections.size!==quizEvents.length;
  renderSeats();
 }
 function checkAnswers(){
- if(checked||selections.size!==Object.keys(lastActions).length)return;
+ if(checked||selections.size!==quizEvents.length)return;
  checked=true;
  document.querySelectorAll('#questions .question').forEach(container=>{
-  const i=Number(container.dataset.player),answer=selections.get(i),correct=lastActions[i];
+  const index=Number(container.dataset.event),answer=selections.get(index),correct=quizEvents[index].action;
   const ok=answer===correct;total++;if(ok)score++;
   container.querySelectorAll('.choice').forEach(b=>{
    b.disabled=true;b.classList.remove('selected');
