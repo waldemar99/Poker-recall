@@ -607,6 +607,8 @@ h1 em {
   font-weight:800
 }
 
+.choice.selected,.choice.selected:disabled {background:#72531e;border-color:#f1c86b;color:#fff;opacity:1}
+
 .choice:disabled {
   opacity:.5;
   cursor:default
@@ -797,7 +799,7 @@ h1 em {
    <div class="live-action" id="live-action"><div class="live-icon">♣</div><div id="action-text">Der Tisch ist bereit. Starte deine erste Hand.</div></div>
    <div id="history" class="history"></div>
    <div class="players-panel"><div class="panel-heading"><span>SPIELER</span><span>CHIPS · STATUS</span></div><div id="player-list" class="player-list"></div></div>
-   <section id="quiz" class="quiz" hidden><div class="quiz-top"><div class="eyebrow">02 / ERINNERN</div><h2>Was war die letzte Aktion?</h2><p>Tippe für jeden Spieler eine Antwort. Falsches erscheint rot, die richtige Antwort grün.</p></div><div id="questions"></div><button id="next" class="primary next" disabled>Nächste Runde →</button></section>
+   <section id="quiz" class="quiz" hidden><div class="quiz-top"><div class="eyebrow">02 / ERINNERN</div><h2>Was war die letzte Aktion?</h2><p>Wähle für jeden Spieler eine Antwort. Deine Auswahl bleibt sichtbar, bis du auf „Prüfen“ tippst.</p></div><div id="questions"></div><button id="check" class="primary next" disabled>Antworten prüfen ✓</button><button id="next" class="primary next" disabled>Nächste Runde →</button></section>
    <section id="showdown" class="showdown" hidden></section>
    <div class="footnote">Texas Hold’em · 9 Positionen · 10/20 Blinds · realistische Setzrunden mit Re-Raises, All-ins, Main- und Side-Pots. Automatische Zufallssimulation für das Gedächtnistraining.</div>
   </section>
@@ -975,7 +977,7 @@ const $=id=>document.getElementById(id);
 const xy=[[30,88],[10,71],[6,42],[22,15],[49,5],[76,15],[94,42],[90,71],[70,88]];
 const kinds=['Fold','Check','Call','Bet','Raise','All-in'];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-let hand=null,state=null,street=0,mode='idle',token=0,score=0,total=0,answered=new Set(),lastActions={};
+let hand=null,state=null,street=0,mode='idle',token=0,score=0,total=0,answered=new Set(),selections=new Map(),checked=false,lastActions={};
 let pot=30,shown=0,actor=null,log=[];
 const fmt=n=>new Intl.NumberFormat('de-DE').format(n);
 const visible=(id,display)=>$(id).hidden=!display;
@@ -1037,7 +1039,7 @@ function setLive(text){$('action-text').textContent=text;}
 function setPhase(tag,title,desc){$('phase-label').textContent=tag;$('phase-title').textContent=title;$('instructions').textContent=desc;}
 function updateLog(){ $('history').innerHTML=log.slice(-5).map(x=>`<span>${x}</span>`).join(''); }
 function initialize(){
- token++;hand=E.createHand();mode='watch';street=0;actor=null;score=0;total=0;pot=hand.initialPot;shown=0;log=[];answered=new Set();lastActions={};
+ token++;hand=E.createHand();mode='watch';street=0;actor=null;score=0;total=0;pot=hand.initialPot;shown=0;log=[];answered=new Set();selections=new Map();checked=false;lastActions={};
  state=hand.players.map((p,i)=>({...hand.init[i],folded:false,allIn:hand.init[i].stack===0}));
  visible('quiz',false);visible('showdown',false);$('history').classList.remove('is-hidden');$('start').innerHTML='<span>♠</span> Neue Hand starten <span class="arrow">↻</span>';
  $('live-action').hidden=false;setLive('Die Karten sind verteilt. UTG beginnt vor dem Flop.');
@@ -1046,7 +1048,7 @@ function initialize(){
 }
 async function playRound(id){
  if(id!==token)return;
- mode='watch';actor=null;answered=new Set();lastActions={};log=[];
+ mode='watch';actor=null;answered=new Set();selections=new Map();checked=false;lastActions={};log=[];
  $('history').classList.remove('is-hidden');visible('quiz',false);visible('showdown',false);$('live-action').hidden=false;
  shown=[0,3,4,5][street];
  setPhase('01 / BEOBACHTEN',`${E.STREETS[street]} · Aktionen beobachten`,'Achte auf Folds, Checks, Calls, Bets, Raises und All-ins. Derselbe Spieler kann mehrmals an der Reihe sein.');
@@ -1076,19 +1078,33 @@ function startQuiz(){
  if(!players.length){quiz.innerHTML='<p>Keine Setzaktionen mehr: Die verbleibenden Spieler sind All-in oder die Hand ist entschieden.</p>';}
  else quiz.innerHTML=players.map(i=>`<div class="question${state[i].folded?' folded':''}" data-player="${i}"><div class="question-head"><strong>${hand.players[i].name}</strong><small>LETZTE AKTION?</small></div><div class="choices">${kinds.map(k=>`<button type="button" class="choice" data-choice="${k}">${k}</button>`).join('')}</div></div>`).join('');
  quiz.querySelectorAll('button[data-choice]').forEach(b=>b.addEventListener('click',onChoice));
- $('next').disabled=players.length>0;$('next').textContent=street===3||hand.events.slice(street+1).every(a=>!a.length)?'Showdown zeigen →':'Nächste Runde →';
+ $('check').hidden=players.length===0;$('check').disabled=players.length>0;
+ $('next').hidden=players.length>0;$('next').disabled=players.length>0;$('next').textContent=street===3||hand.events.slice(street+1).every(a=>!a.length)?'Showdown zeigen →':'Nächste Runde →';
  visible('quiz',true);render();
 }
 function onChoice(e){
- const btn=e.currentTarget,container=btn.closest('.question'),i=Number(container.dataset.player);if(answered.has(i))return;
- const answer=btn.dataset.choice,correct=lastActions[i];answered.add(i);total++;
- const ok=answer===correct;if(ok)score++;
- container.querySelectorAll('.choice').forEach(b=>{
-  b.disabled=true;if(b.dataset.choice===correct)b.classList.add('correct');else if(b===btn)b.classList.add('wrong');
+ if(checked)return;
+ const btn=e.currentTarget,container=btn.closest('.question'),i=Number(container.dataset.player);
+ selections.set(i,btn.dataset.choice);
+ container.querySelectorAll('.choice').forEach(b=>b.classList.toggle('selected',b===btn));
+ container.querySelector('small').textContent='AUSGEWÄHLT: '+btn.dataset.choice.toUpperCase();
+ $('check').disabled=selections.size!==Object.keys(lastActions).length;
+}
+function checkAnswers(){
+ if(checked||selections.size!==Object.keys(lastActions).length)return;
+ checked=true;
+ document.querySelectorAll('#questions .question').forEach(container=>{
+  const i=Number(container.dataset.player),answer=selections.get(i),correct=lastActions[i];
+  const ok=answer===correct;total++;if(ok)score++;
+  container.querySelectorAll('.choice').forEach(b=>{
+   b.disabled=true;b.classList.remove('selected');
+   if(b.dataset.choice===correct)b.classList.add('correct');
+   else if(b.dataset.choice===answer)b.classList.add('wrong');
+  });
+  container.querySelector('small').textContent=ok?'RICHTIG ✓':`RICHTIG: ${correct}`;
  });
- container.querySelector('small').textContent=ok?'RICHTIG ✓':`RICHTIG: ${correct}`;
  $('score').textContent=`${score} / ${total}`;
- if(answered.size===Object.keys(lastActions).length)$('next').disabled=false;
+ $('check').hidden=true;$('next').hidden=false;$('next').disabled=false;
 }
 function moveNext(){
  if(mode!=='quiz')return;
@@ -1119,6 +1135,7 @@ $('start').addEventListener('click',()=>{
   help.hidden=false;
  }
 });
+$('check').addEventListener('click',checkAnswers);
 $('next').addEventListener('click',moveNext);
 // Die Spieloberfläche bleibt vor der ersten Hand vollständig sichtbar.
 const initial=E.POSITIONS.map((name,i)=>({id:i,name,cards:[]}));
