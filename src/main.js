@@ -25,7 +25,7 @@ function renderSeats(){
  // Sitzplätze werden nur einmal angelegt und bei jeder Aktion aktualisiert.
  // Dadurch bleiben die DOM-Elemente bestehen und Fold-Übergänge animieren wirklich.
  if(host.children.length!==state.length){
-  host.innerHTML=state.map((p,i)=>`<div class="seat" style="--x:${xy[i][0]}%;--y:${xy[i][1]}%"><div class="holecards"><div class="hole"></div><div class="hole"></div></div><div class="person"><div class="name">${hand.players[i].name}</div><div class="stack"></div></div><div class="chip-state"></div><div class="table-bet"></div>${i===8?'<div class="dealer-button" aria-label="Dealer Button">D</div>':''}</div>`).join('');
+  host.innerHTML=state.map((p,i)=>`<div class="seat" style="--x:${xy[i][0]}%;--y:${xy[i][1]}%"><div class="holecards"><div class="hole"></div><div class="hole"></div></div><div class="person"><div class="name">${hand.players[i].name}</div><div class="stack"></div></div><div class="chip-state"></div><div class="seat-equity" hidden></div><div class="table-bet"></div>${i===8?'<div class="dealer-button" aria-label="Dealer Button">D</div>':''}</div>`).join('');
  }
  state.forEach((p,i)=>{
   const seat=host.children[i];
@@ -40,6 +40,8 @@ function renderSeats(){
   seat.querySelector('.name').textContent=hand.players[i].name;
   seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
   seat.querySelector('.table-bet').textContent=((mode==='watch'||mode==='replay')&&p.streetBet>0)?fmt(p.streetBet):'';
+  const equityLabel=seat.querySelector('.seat-equity');
+  if(equityLabel)equityLabel.hidden=true;
   const tag=seat.querySelector('.chip-state');
   const entries=mode==='quiz'?quizEvents.map((ev,index)=>({ev,index})).filter(x=>x.ev.id===i):[];
   const chosen=entries.filter(x=>selections.has(x.index));
@@ -194,6 +196,11 @@ function replayEquity(){
 function updateReplayEquity(){
  const panel=$('replay-equity');if(!panel)return;
  const eq=replayEquity();
+ document.querySelectorAll('#seats .seat').forEach((seat,i)=>{
+  const label=seat.querySelector('.seat-equity');if(!label)return;
+  label.hidden=Boolean(state[i].folded);
+  label.textContent=state[i].folded?'':eq[i].toFixed(1)+' % EQ';
+ });
  panel.innerHTML='<strong>Equity · Gewinnchance</strong><div style="font-size:11px;opacity:.7;margin:4px 0 9px">Bekannte Holecards · Split Pots anteilig · Monte-Carlo-Simulation</div>'+hand.players.map((p,i)=>state[i].folded?'':`<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:66px;font-weight:700">${p.name}</span><div style="height:9px;background:#23343c;border-radius:8px;flex:1;overflow:hidden"><div style="height:100%;width:${eq[i].toFixed(2)}%;background:#dfbe79"></div></div><b style="width:55px;text-align:right;font-variant-numeric:tabular-nums">${eq[i].toFixed(1)}%</b></div>`).join('');
 }
 function replaySteps(){return hand.events.flatMap((events,round)=>events.map(action=>({round,action})));}
