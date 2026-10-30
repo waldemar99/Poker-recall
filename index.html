@@ -781,7 +781,7 @@ h1 em {
 <body>
  <main class="app">
   <header class="heading">
-   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V5 · TEMPO</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
+   <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V6 · 2 RAISES</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
    <div class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></div>
   </header>
   <section class="sticky-game" aria-label="Pokertisch">
@@ -864,14 +864,15 @@ function createHand(opts={}){
   const active=()=>p.filter(x=>!x.folded&&!x.allIn);
   let q=street===0?[2,3,4,5,6,7,8,0,1].filter(i=>eligible().includes(i)):
     [0,1,2,3,4,5,6,7,8].filter(i=>eligible().includes(i));
-  let actedSinceFullRaise=new Set(),safety=0;
+  let actedSinceFullRaise=new Set(),safety=0,raisesThisStreet=0;
   while(q.length&&live().length>1&&++safety<300){
    const i=q.shift(),pl=p[i];
    if(pl.folded||pl.allIn)continue;
    const toCall=Math.max(0,currentBet-pl.streetBet);
    // Postflop beginnt jede Setzrunde ohne Einsatz: ein Call ist erst nach einer Bet möglich.
    if(street>0 && events[street].length===0 && (currentBet!==0 || toCall!==0))throw new Error('Ungültiger Eröffnungseinsatz nach dem Flop');
-   const canRaise=active().length>1&&!actedSinceFullRaise.has(i)&&pl.stack>toCall;
+   // Trainingslimit: maximal zwei Erhöhungen je Setzrunde; eine eröffnende Bet zählt nicht.
+   const canRaise=active().length>1&&!actedSinceFullRaise.has(i)&&pl.stack>toCall&&(currentBet===0||raisesThisStreet<2);
    const minRaiseTo=currentBet===0?bb:currentBet<bb?bb:currentBet+lastFullRaise;
    const minExtra=Math.max(0,minRaiseTo-currentBet);
    const canFullRaise=canRaise&&pl.stack>=toCall+minExtra;
@@ -897,6 +898,7 @@ function createHand(opts={}){
    }
    const previousBet=currentBet;
    if(pl.streetBet>currentBet){
+    if(currentBet>0)raisesThisStreet++;
     const raiseSize=pl.streetBet-currentBet;
     currentBet=pl.streetBet;
     if(raiseSize>=lastFullRaise || (previousBet<bb&&currentBet>=bb)){
