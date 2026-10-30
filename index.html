@@ -986,7 +986,7 @@ function renderSeats(){
   seat.querySelector('.holecards').innerHTML=cardHole(hand.players[i].cards[0],face)+cardHole(hand.players[i].cards[1],face);
   seat.querySelector('.name').textContent=hand.players[i].name;
   seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
-  seat.querySelector('.chip-state').textContent=p.folded?'FOLD':p.allIn?'ALL-IN':actor===i?'AM ZUG':win?'GEWINNER':'';
+  seat.querySelector('.chip-state').textContent=p.folded?'FOLD':(mode==='watch'&&lastActions[i]?lastActions[i].toUpperCase():p.allIn?'ALL-IN':win?'GEWINNER':'');
  });
 }
 function renderList(){
