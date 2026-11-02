@@ -34,7 +34,7 @@ function compare(a,b){for(let i=0;i<Math.max(a.length,b.length);i++){let d=(a[i]
 function evaluate7(cs){let best=null;for(let a=0;a<3;a++)for(let b=a+1;b<4;b++)for(let c=b+1;c<5;c++)for(let d=c+1;d<6;d++)for(let e=d+1;e<7;e++){const x=evaluate5([cs[a],cs[b],cs[c],cs[d],cs[e]]);if(!best||compare(x,best)>0)best=x;}return best;}
 const HANDS=['High Card','Ein Paar','Zwei Paare','Drilling','Straight','Flush','Full House','Vierling','Straight Flush'];
 function createHand(opts={}){
- const sb=Number(opts.sb)||10, bb=Number(opts.bb)||20, raw=opts.stacks||POSITIONS.map(()=>((Math.random()<.12?10+rand(25):80+rand(65))*bb));
+ const sb=Number(opts.sb)||10, bb=Number(opts.bb)||20, raw=opts.stacks||POSITIONS.map(()=>3000);
  const cards=deck();let take=()=>cards.pop();
  const p=POSITIONS.map((name,i)=>({id:i,name,stack:Math.max(1,raw[i]||400),committed:0,streetBet:0,folded:false,allIn:false,cards:[take(),take()],lastAction:null}));
  const board=Array.from({length:5},take);
