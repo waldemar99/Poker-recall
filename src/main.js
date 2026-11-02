@@ -263,7 +263,8 @@ $('check').addEventListener('click',checkAnswers);
 $('next').addEventListener('click',moveNext);
 // Die Spieloberfläche bleibt vor der ersten Hand vollständig sichtbar.
 const initial=E.POSITIONS.map((name,i)=>({id:i,name,cards:[]}));
-hand={players:initial,board:[],originalStacks:[]};state=initial.map((x,i)=>({stack:2000,folded:false,allIn:false}));
+hand={players:initial,board:[],originalStacks:E.POSITIONS.map(()=>3000)};state=initial.map(()=>({stack:3000,folded:false,allIn:false,streetBet:0,committed:0}));
+pot=0;
 render();$('street-title').textContent='BEREIT · 9 SPIELER';$('round-label').textContent='BLINDS 10 / 20';
 // Skripte wurden ausgeführt, daher die Vorschau-Warnung ausblenden.
 $('runtime-help').hidden=true;
