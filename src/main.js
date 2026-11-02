@@ -1,5 +1,6 @@
 import './poker-engine.js';
 import './style.css';
+import { replayFrame, replaySteps, estimateShowdownShare } from './replay.js';
 
 /**
  * Poker Recall – Oberfläche, Abläufe und Quiz.
@@ -164,33 +165,11 @@ const equityCache=new Map();
 function replayEquity(){
  const key=replayIndex+':'+street+':'+shown+':'+state.map(p=>p.folded?'F':'A').join('');
  if(equityCache.has(key))return equityCache.get(key);
- const eligible=state.map((p,i)=>!p.folded?i:-1).filter(i=>i>=0);
- const results=Array(9).fill(0);
- if(eligible.length===1){results[eligible[0]]=100;equityCache.set(key,results);return results;}
- if(!eligible.length)return results;
- const known=[...hand.players.flatMap(p=>p.cards),...hand.board.slice(0,shown)];
- const seen=new Set(known.map(c=>c.r+':'+c.s));
- const remaining=[];
- for(const suit of ['♠','♥','♦','♣'])for(let rank=2;rank<=14;rank++)if(!seen.has(rank+':'+suit))remaining.push({r:rank,s:suit});
- const boardKnown=hand.board.slice(0,shown);
- const missing=5-boardKnown.length;
- const trials=missing===0?1:1200;
- for(let t=0;t<trials;t++){
-  const deck=remaining.slice();
-  for(let k=0;k<missing;k++){
-   const j=k+Math.floor(Math.random()*(deck.length-k));
-   [deck[k],deck[j]]=[deck[j],deck[k]];
-  }
-  const board=[...boardKnown,...deck.slice(0,missing)];
-  let best=null,winners=[];
-  for(const i of eligible){
-   const rank=E.evaluate7([...hand.players[i].cards,...board]);
-   const comparison=best===null?1:E.compare(rank,best);
-   if(comparison>0){best=rank;winners=[i];}
-   else if(comparison===0)winners.push(i);
-  }
-  for(const i of winners)results[i]+=100/trials/winners.length;
- }
+ const results=estimateShowdownShare(
+  {players:hand.players,board:hand.board,shown,folded:state.map(p=>p.folded)},
+  E.evaluate7,
+  E.compare,
+ );
  equityCache.set(key,results);return results;
 }
 function updateReplayEquity(){
@@ -201,32 +180,19 @@ function updateReplayEquity(){
   label.hidden=Boolean(state[i].folded);
   label.textContent=state[i].folded?'':eq[i].toFixed(1)+' % EQ';
  });
- panel.innerHTML='<strong>Equity · Gewinnchance</strong><div style="font-size:11px;opacity:.7;margin:4px 0 9px">Bekannte Holecards · Split Pots anteilig · Monte-Carlo-Simulation</div>'+hand.players.map((p,i)=>state[i].folded?'':`<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:66px;font-weight:700">${p.name}</span><div style="height:9px;background:#23343c;border-radius:8px;flex:1;overflow:hidden"><div style="height:100%;width:${eq[i].toFixed(2)}%;background:#dfbe79"></div></div><b style="width:55px;text-align:right;font-variant-numeric:tabular-nums">${eq[i].toFixed(1)}%</b></div>`).join('');
+ panel.innerHTML='<strong>Showdown-Anteil unter aktiven Spielern</strong><div style="font-size:11px;opacity:.7;margin:4px 0 9px">Bekannte Holecards · Splits anteilig · Side-Pots nicht nach Höhe gewichtet · Monte-Carlo-Simulation</div>'+hand.players.map((p,i)=>state[i].folded?'':`<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:66px;font-weight:700">${p.name}</span><div style="height:9px;background:#23343c;border-radius:8px;flex:1;overflow:hidden"><div style="height:100%;width:${eq[i].toFixed(2)}%;background:#dfbe79"></div></div><b style="width:55px;text-align:right;font-variant-numeric:tabular-nums">${eq[i].toFixed(1)}%</b></div>`).join('');
 }
-function replaySteps(){return hand.events.flatMap((events,round)=>events.map(action=>({round,action})));}
 function showReplayStep(index){
- const steps=replaySteps();replayIndex=Math.max(0,Math.min(index,steps.length));
+ const steps=replaySteps(hand.events);replayIndex=Math.max(0,Math.min(index,steps.length));
  mode='replay';actor=null;lastActions={};log=[];
- state=hand.players.map((p,i)=>({...hand.init[i],folded:false,allIn:hand.init[i].stack===0}));
- pot=hand.initialPot;street=0;shown=0;
- for(let n=0;n<replayIndex;n++){
-  const {round,action}=steps[n];
-  if(round!==street){street=round;state.forEach(p=>p.streetBet=0);}
-  const p=state[action.id];Object.assign(p,{stack:action.stack,committed:action.committed,streetBet:action.bet,folded:action.folded,allIn:action.allIn});
-  pot=action.pot;lastActions[action.id]=action.action;
- }
+ const frame=replayFrame(hand,steps,replayIndex);
+ ({state,pot,street,shown,lastActions,actor}=frame);
  // Alle Chips müssen auch während des Replays vollständig bilanziert sein.
  const stackSum=state.reduce((sum,p)=>sum+p.stack,0);
  const initialSum=hand.originalStacks.reduce((sum,n)=>sum+n,0);
  if(stackSum+pot!==initialSum)console.error('Replay-Chipbilanz fehlerhaft',{replayIndex,stackSum,pot,initialSum});
- if(replayIndex<steps.length){
-  const next=steps[replayIndex];
-  if(next.round>street){street=next.round;state.forEach(p=>p.streetBet=0);}
- }
- shown=[0,3,4,5][street];
  const current=replayIndex?steps[replayIndex-1]:null;
- actor=current?current.action.id:null;
- const status=replayIndex===0?'Start der Hand · Blinds sind gesetzt':current.action.text;
+ const status=replayIndex===0?'Start der Hand · Blinds sind gesetzt':replayIndex===steps.length?'Alle Aktionen abgeschlossen · Showdown':current.action.text;
  setPhase('04 / REPLAY','Hand Schritt für Schritt',`Aktion ${replayIndex} von ${steps.length} · ${E.STREETS[street]}`);
  setLive(status);progress();render();updateReplayEquity();
  $('replay-position').textContent=`Aktion ${replayIndex} / ${steps.length} · ${E.STREETS[street]}`;
@@ -236,7 +202,7 @@ function showReplayStep(index){
  $('replay-controls').hidden=false;
 }
 function finish(){
- mode='showdown';actor=null;shown=hand.boardToShow;pot=hand.pots.reduce((a,x)=>a+x.amount,0);
+ mode='showdown';actor=null;shown=hand.boardToShow;pot=0;
  state=hand.final.map((pl)=>({...pl}));
  progress();setPhase('03 / AUSWERTUNG',hand.uncontested?'Gewonnen ohne Showdown':'Showdown · Die Gewinner',hand.uncontested?'Alle Gegner sind ausgestiegen. Nicht ausgespielte Gemeinschaftskarten bleiben verdeckt.':'Alle fünf Gemeinschaftskarten sind aufgedeckt. Die Chip-Verteilung berücksichtigt getrennte Side-Pots und mögliche Split-Pots.');
  $('history').classList.add('is-hidden');visible('quiz',false);$('live-action').hidden=false;
