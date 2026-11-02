@@ -30,12 +30,12 @@ function renderSeats(){
  state.forEach((p,i)=>{
   const seat=host.children[i];
   if(i===8&&!seat.querySelector('.dealer-button'))seat.insertAdjacentHTML('beforeend','<div class="dealer-button" aria-label="Dealer Button">D</div>');
-  const face=mode==='showdown';
+  const face=mode==='showdown'||mode==='replay';
   const win=mode==='showdown'&&hand.pots.some(pot=>pot.winners.includes(i));
   seat.classList.toggle('folded',Boolean(p.folded)&&mode!=='showdown');
   seat.classList.toggle('is-active',actor===i);
   seat.classList.toggle('is-winner',Boolean(win));
-  seat.classList.toggle('showdown-reveal',mode==='showdown');
+  seat.classList.toggle('showdown-reveal',mode==='showdown'||mode==='replay');
   seat.querySelector('.holecards').innerHTML=cardHole(hand.players[i].cards[0],face)+cardHole(hand.players[i].cards[1],face);
   seat.querySelector('.name').textContent=hand.players[i].name;
   seat.querySelector('.stack').textContent=`${fmt(p.stack)} ♣`;
@@ -215,6 +215,10 @@ function showReplayStep(index){
   const p=state[action.id];Object.assign(p,{stack:action.stack,committed:action.committed,streetBet:action.bet,folded:action.folded,allIn:action.allIn});
   pot=action.pot;lastActions[action.id]=action.action;
  }
+ // Alle Chips müssen auch während des Replays vollständig bilanziert sein.
+ const stackSum=state.reduce((sum,p)=>sum+p.stack,0);
+ const initialSum=hand.originalStacks.reduce((sum,n)=>sum+n,0);
+ if(stackSum+pot!==initialSum)console.error('Replay-Chipbilanz fehlerhaft',{replayIndex,stackSum,pot,initialSum});
  if(replayIndex<steps.length){
   const next=steps[replayIndex];
   if(next.round>street){street=next.round;state.forEach(p=>p.streetBet=0);}
