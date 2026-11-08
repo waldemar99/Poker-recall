@@ -1,0 +1,18 @@
+{
+  "name": "Poker Recall – Texas Hold’em Trainer",
+  "short_name": "Poker Recall",
+  "description": "Poker-Gedächtnistrainer für neun Spieler",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a1017",
+  "theme_color": "#0a1017",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
