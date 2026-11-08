@@ -1,0 +1,30 @@
+name: Publish iSH build
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+concurrency:
+  group: ish-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - run: npm test
+      - run: npm run build -- --base=./
+      - run: cd dist && zip -qr ../poker-recall-ish.zip .
+      - name: Publish downloadable ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view ish-latest >/dev/null 2>&1; then
+            gh release create ish-latest --target main --title "iSH build" --notes "Portable browser build for iSH; updated automatically." --prerelease --latest=false
+          fi
+          gh release upload ish-latest poker-recall-ish.zip --clobber
