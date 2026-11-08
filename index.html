@@ -18,8 +18,18 @@
  <main class="app">
   <header class="heading">
    <div><div class="eyebrow"><span class="logo">♠</span> POKER RECALL <span class="version">V12 · 3000 CHIPS</span></div><h1>Den Tisch lesen.<br><em>Die Runde behalten.</em></h1></div>
-   <div class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></div>
+   <div class="account"><button id="account-toggle" type="button" aria-expanded="false">♙ Gast · Anmelden</button><span class="stat"><span>TREFFER</span><strong id="score">0 / 0</strong></span></div>
   </header>
+  <section id="account-panel" class="account-panel" hidden aria-label="Benutzerkonto">
+    <p id="account-status" role="status">Du spielst als Gast. Die Anmeldung ist freiwillig.</p>
+    <form id="account-form">
+      <label for="account-email">E-Mail</label><input id="account-email" type="email" autocomplete="email" required placeholder="name@beispiel.de">
+      <label for="account-password">Passwort</label><input id="account-password" type="password" autocomplete="current-password" minlength="6" required placeholder="Mindestens 6 Zeichen">
+      <div class="account-actions"><button type="submit" id="account-login">Anmelden</button><button type="button" id="account-signup">Registrieren</button><button type="button" id="account-reset">Passwort vergessen?</button></div>
+    </form>
+    <button id="account-logout" type="button" hidden>Abmelden</button>
+    <p class="account-note">Ohne Konto kannst du Poker Recall jederzeit spielen. Cloud-Speicherung der Ergebnisse folgt später.</p>
+  </section>
   <section class="sticky-game" aria-label="Pokertisch">
    <div class="table-header"><div><span class="pulse"></span><span id="street-title">BEREIT · 9 SPIELER</span></div><span id="round-label">BLINDS 10 / 20</span></div>
    <div class="table-wrap">
