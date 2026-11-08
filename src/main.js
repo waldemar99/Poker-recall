@@ -1,5 +1,6 @@
 import './poker-engine.js';
 import './style.css';
+import './auth.js';
 import { replayFrame, replaySteps, estimateShowdownShare } from './replay.js';
 
 /**
