@@ -778,3 +778,15 @@ h1 em {
 
 /* Equity directly at each seat during replay */
 .seat-equity:not([hidden]){display:block;position:relative;z-index:3;width:max-content;max-width:110px;margin:2px auto;padding:3px 6px;border:1px solid #dfbe79;border-radius:7px;background:#14251f;color:#ffe3a0;font-size:clamp(9px,2.4vw,12px);font-weight:900;letter-spacing:.02em;white-space:nowrap;box-shadow:0 2px 8px #0009}
+
+/* Optional Supabase login; game remains available to guests. */
+.account{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.account>button,.account-panel button{background:#21363b;color:#f7edd5;border:1px solid #49635e;border-radius:8px;padding:8px 10px;font-size:12px}
+.account-panel{padding:15px;margin:0 4px 14px;border:1px solid #36554e;border-radius:12px;background:#12252a}
+.account-panel[hidden]{display:none}
+.account-panel form{display:grid;gap:7px}
+.account-panel label{font-size:11px;color:#a7c3b8}
+.account-panel input{width:100%;padding:11px;background:#0b151b;border:1px solid #49635e;border-radius:8px;color:#fff;font:inherit}
+.account-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+.account-panel p{font-size:12px;line-height:1.5}
+.account-panel .account-note{color:#8da3a6}
